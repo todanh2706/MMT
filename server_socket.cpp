@@ -8,9 +8,16 @@ Server::Server(int port)
     if (result != 0) {
         std::cerr << "WSAStartup failed: " << result << std::endl;
     }
+
+    // Initialize GDI+
+    GdiplusStartupInput gdiplusStartupInput;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 }
 
 Server::~Server() {
+    // Clean up GDI+
+    GdiplusShutdown(gdiplusToken);
+    
     if (listenSocket != INVALID_SOCKET) {
         closesocket(listenSocket);
     }
@@ -73,7 +80,6 @@ void Server::listenForConnections() {
 void Server::takeScreenshot(const std::string& filename) {
     // Initialize GDI+
     GdiplusStartupInput gdiplusStartupInput;
-    ULONG_PTR gdiplusToken;
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
     // Get the screen dimensions
@@ -92,7 +98,11 @@ void Server::takeScreenshot(const std::string& filename) {
     // Create GDI+ Image from the bitmap
     Bitmap bitmap(hBitmap, NULL);
     CLSID clsid;
-    CLSIDFromString(L"{557CC3D0-1A3A-11D1-AD6E-00A0C9138F8C}", &clsid); // CLSID for PNG
+    HRESULT result = CLSIDFromString(L"{557CC3D0-1A3A-11D1-AD6E-00A0C9138F8C}", &clsid); // CLSID for PNG
+    if (FAILED(result)) {
+        std::cerr << "Failed to get CLSID for PNG." << std::endl;
+        return; // Handle error appropriately
+    }
 
     // Save the image as a PNG file
     WCHAR wFilename[MAX_PATH];
