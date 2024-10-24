@@ -8,12 +8,13 @@
 ### credential.json format
 ```
 {
-	"accessToken" : "abc",
+	"accessToken" : "ya29.a0AcM612witTMR5HHMWELhr0dLcE1s7CyThP2nErmkPO44sS4VH4COFCLkvqAWgqxFZgeJulT-V0L_aOrKH0uaqL7krq7cwehAwGNdW2-0vAqvr643iCrUFP9Fr0l-ScXYUl_b6bwotGJUHUM75OjFUrkappnj3bOrofxsxsViHwaCgYKAYgSARASFQHGX2Mizdz2G86W0-LuelGHa_eaJg0177",
 	"clientID" : "895952228884-9c0ic1rovu7a94imbkf5iqglbjo852eo.apps.googleusercontent.com",
-	"clientSecret" : "abc",
-	"refreshToken" : "abc"
+	"clientSecret" : "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",
+	"refreshToken" : "1//0gfPWJb6Pda0-CgYIARAAGBASNwF-L9Ir-sjA1GFPj8V8gn1U4sI79rF_rjPP3u78_ThuFUVYEIFml3FWZAIixOFMyew0BqP0GhA"
 }
 ```
+
 
 
 ## Run command
