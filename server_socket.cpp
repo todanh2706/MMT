@@ -70,42 +70,45 @@ void Server::listenForConnections() {
 }
 
 // Function to take a screenshot and save it as a PNG file
-void Server::takeScreenshot(const std::wstring& filename) {
+void Server::takeScreenshot(const std::string& filename) {
     // Initialize GDI+
     GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
-    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
-    // Get the size of the screen
-    HDC screenDC = GetDC(nullptr);
-    HDC memDC = CreateCompatibleDC(screenDC);
-    int width = GetDeviceCaps(screenDC, HORZRES);
-    int height = GetDeviceCaps(screenDC, VERTRES);
-    
-    // Create a bitmap to hold the screenshot
-    HBITMAP bitmap = CreateCompatibleBitmap(screenDC, width, height);
-    SelectObject(memDC, bitmap);
-    
-    // Copy the screen to the bitmap
-    BitBlt(memDC, 0, 0, width, height, screenDC, 0, 0, SRCCOPY);
-    
-    // Create a GDI+ Bitmap object from the HBITMAP
-    Bitmap gdiPlusBitmap(bitmap, nullptr);
-    
-    // Save the bitmap to a file
+    // Get the screen dimensions
+    HDC screenDC = GetDC(NULL);
+    HDC memoryDC = CreateCompatibleDC(screenDC);
+    int width = GetSystemMetrics(SM_CXSCREEN);
+    int height = GetSystemMetrics(SM_CYSCREEN);
+
+    // Create a compatible bitmap
+    HBITMAP hBitmap = CreateCompatibleBitmap(screenDC, width, height);
+    SelectObject(memoryDC, hBitmap);
+
+    // BitBlt to copy the screen to the bitmap
+    BitBlt(memoryDC, 0, 0, width, height, screenDC, 0, 0, SRCCOPY);
+
+    // Create GDI+ Image from the bitmap
+    Bitmap bitmap(hBitmap, NULL);
     CLSID clsid;
-    CLSIDFromString(L"{557A1A11-1D47-4D6E-A2F7-BF0054A639E7}", &clsid); // CLSID for PNG
-    gdiPlusBitmap.Save(filename.c_str(), &clsid, nullptr);
+    CLSIDFromString(L"{557CC3D0-1A3A-11D1-AD6E-00A0C9138F8C}", &clsid); // CLSID for PNG
+
+    // Save the image as a PNG file
+    WCHAR wFilename[MAX_PATH];
+    MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wFilename, MAX_PATH);
+    bitmap.Save(wFilename, &clsid, NULL);
 
     // Clean up
-    DeleteObject(bitmap);
-    DeleteDC(memDC);
-    ReleaseDC(nullptr, screenDC);
+    DeleteObject(hBitmap);
+    DeleteDC(memoryDC);
+    ReleaseDC(NULL, screenDC);
     GdiplusShutdown(gdiplusToken);
 }
 
 // Function to send a screenshot image to the client
-void Server::sendScreenshot(SOCKET clientSocket, const std::wstring& filename) {
+// Function to send a screenshot image to the client
+void Server::sendScreenshot(SOCKET clientSocket, const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);
     if (!file) {
         std::cerr << "Failed to open screenshot file: " << filename << std::endl;
@@ -151,10 +154,11 @@ void Server::handleClient(SOCKET clientSocket) {
         {
             std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
             // Take a screenshot and save it
-            takeScreenshot(L"screenshot.png"); // Save as screenshot.png
+            takeScreenshot("screenshot.png"); // Save as screenshot.png
             std::cout << "Screenshot taken and saved as screenshot.png" << std::endl;
 
-            sendScreenshot(clientSocket, L"screenshot.png");
+            // Send the screenshot back to the client
+            sendScreenshot(clientSocket, "screenshot.png");
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
