@@ -3,6 +3,12 @@
 
 #include <winsock2.h>
 #include <string>
+#include <iostream>
+#include <gdiplus.h>
+
+#pragma comment (lib,"Gdiplus.lib")
+
+using namespace Gdiplus;
 
 class Server {
 public:
@@ -15,6 +21,8 @@ private:
     int port;
     SOCKET listenSocket;
     void handleClient(SOCKET clientSocket);
+    void takeScreenshot(const std::wstring& filename);
+    void sendScreenshot(SOCKET clientSocket, const std::wstring& filename);
 };
 
 #endif // SERVER_SOCKET_H
