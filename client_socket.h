@@ -2,6 +2,7 @@
 #define CLIENT_SOCKET_H
 
 #include <winsock2.h>
+#include <fstream>
 #include <string>
 
 class Client {

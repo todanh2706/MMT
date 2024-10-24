@@ -13,7 +13,8 @@ int main(int argc, char* argv[]) {
         // Start client
         Client client("192.168.226.131", 54000);
         if (client.connectToServer()) {
-            client.sendShutdownRequest();
+            // client.sendShutdownRequest();
+            client.sendScreenshotRequest();
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
