@@ -46,12 +46,23 @@ bool Client::connectToServer() {
 }
 
 bool Client::sendShutdownRequest() {
-    const char* shutdownMessage = "shutdown";
-    int result = send(clientSocket, shutdownMessage, strlen(shutdownMessage), 0);
+    const char* message = "SHUTDOWN";
+    int result = send(clientSocket, message, strlen(message), 0);
     if (result == SOCKET_ERROR) {
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
     std::cout << "Shutdown request sent successfully!" << std::endl;
+    return true;
+}
+
+bool Client::sendRestartRequest() {
+    const char* message = "RESTART";
+    int result = send(clientSocket, message, strlen(message), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    std::cout << "Restart request sent successfully!" << std::endl;
     return true;
 }

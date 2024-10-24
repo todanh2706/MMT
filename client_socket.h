@@ -10,6 +10,7 @@ public:
     ~Client();
     bool connectToServer();
     bool sendShutdownRequest();
+    bool sendRestartRequest();
 
 private:
     std::string serverIP;
