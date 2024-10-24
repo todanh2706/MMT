@@ -1,5 +1,5 @@
-#include "Client.h"
-#include "Server.h"
+#include "client_socket.h"
+#include "server_socket.h"
 #include <iostream>
 #include <thread>
 
