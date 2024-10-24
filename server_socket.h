@@ -5,6 +5,7 @@
 #include <string>
 #include <iostream>
 #include <gdiplus.h>
+#include <fstream>
 
 #pragma comment (lib,"Gdiplus.lib")
 
@@ -21,8 +22,8 @@ private:
     int port;
     SOCKET listenSocket;
     void handleClient(SOCKET clientSocket);
-    void takeScreenshot(const std::wstring& filename);
-    void sendScreenshot(SOCKET clientSocket, const std::wstring& filename);
+    void takeScreenshot(const std::string& filename);
+    void sendScreenshot(SOCKET clientSocket, const std::string& filename);
 };
 
 #endif // SERVER_SOCKET_H
