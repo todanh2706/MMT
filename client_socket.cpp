@@ -59,7 +59,7 @@ bool Client::sendShutdownRequest() {
 bool Client::sendScreenshotRequest()
 {
     // Step 1: Send a request to the server for a screenshot
-    const char* requestMessage = "screenshot_request";
+    const char* requestMessage = "screenshot";
     int sendResult = send(clientSocket, requestMessage, strlen(requestMessage), 0);
     if (sendResult == SOCKET_ERROR) {
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
