@@ -1,51 +1,57 @@
 #include "client_socket.h"
 #include <iostream>
 
-Client::Client(const std::string& serverIP, int port) {
+Client::Client(const std::string& serverIP, int port)
+    : serverIP(serverIP), port(port), clientSocket(INVALID_SOCKET) {
     // Initialize Winsock
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-        std::cerr << "Failed to initialize Winsock. Error: " << WSAGetLastError() << std::endl;
-        exit(1);
+    WSADATA wsaData;
+    int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (result != 0) {
+        std::cerr << "WSAStartup failed: " << result << std::endl;
     }
-
-    // Create socket
-    clientSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (clientSocket == INVALID_SOCKET) {
-        std::cerr << "Could not create socket. Error: " << WSAGetLastError() << std::endl;
-        WSACleanup();
-        exit(1);
-    }
-
-    // Set up server address
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(serverIP.c_str());
-    serverAddr.sin_port = htons(port);
 }
 
 Client::~Client() {
-    closesocket(clientSocket);
+    // Cleanup
+    if (clientSocket != INVALID_SOCKET) {
+        closesocket(clientSocket);
+    }
     WSACleanup();
 }
 
 bool Client::connectToServer() {
-    if (connect(clientSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-        std::cerr << "Connection failed. Error: " << WSAGetLastError() << std::endl;
+    // Create socket
+    clientSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (clientSocket == INVALID_SOCKET) {
+        std::cerr << "Error at socket(): " << WSAGetLastError() << std::endl;
+        WSACleanup();
         return false;
     }
-    std::cout << "Connected to server." << std::endl;
+
+    // Setup sockaddr_in structure
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = inet_addr(serverIP.c_str());
+    serverAddr.sin_port = htons(port);
+
+    // Connect to server
+    int result = connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Unable to connect to server: " << WSAGetLastError() << std::endl;
+        closesocket(clientSocket);
+        return false;
+    }
+
     return true;
 }
 
-bool Client::sendMessage(const std::string& message) {
-    if (send(clientSocket, message.c_str(), message.size(), 0) < 0) {
-        std::cerr << "Send failed. Error: " << WSAGetLastError() << std::endl;
+bool Client::sendShutdownRequest() {
+    const char* shutdownMessage = "shutdown";
+    int result = send(clientSocket, shutdownMessage, strlen(shutdownMessage), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
-    std::cout << "Message sent: " << message << std::endl;
+    std::cout << "Shutdown request sent successfully!" << std::endl;
     return true;
-}
-
-void Client::cleanup() {
-    closesocket(clientSocket);
-    WSACleanup();
 }

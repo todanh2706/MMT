@@ -4,21 +4,17 @@
 #include <winsock2.h>
 #include <string>
 
-#pragma comment(lib, "ws2_32.lib")  // Winsock Library
-
 class Server {
-private:
-    WSADATA wsa;
-    SOCKET serverSocket, clientSocket;
-    struct sockaddr_in serverAddr, clientAddr;
-    int clientAddrLen;
-
 public:
     Server(int port);
     ~Server();
-    bool startListening();
-    std::string receiveMessage();
-    void stop();
+    bool start();
+    void listenForConnections();
+
+private:
+    int port;
+    SOCKET listenSocket;
+    void handleClient(SOCKET clientSocket);
 };
 
 #endif // SERVER_SOCKET_H

@@ -1,68 +1,93 @@
 #include "server_socket.h"
 #include <iostream>
 
-Server::Server(int port) {
+Server::Server(int port)
+    : port(port), listenSocket(INVALID_SOCKET) {
     // Initialize Winsock
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
-        std::cerr << "Failed to initialize Winsock. Error: " << WSAGetLastError() << std::endl;
-        exit(1);
-    }
-
-    // Create socket
-    serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if (serverSocket == INVALID_SOCKET) {
-        std::cerr << "Could not create socket. Error: " << WSAGetLastError() << std::endl;
-        WSACleanup();
-        exit(1);
-    }
-
-    // Set up server address
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = INADDR_ANY;
-    serverAddr.sin_port = htons(port);
-
-    // Bind
-    if (bind(serverSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) == SOCKET_ERROR) {
-        std::cerr << "Bind failed. Error: " << WSAGetLastError() << std::endl;
-        closesocket(serverSocket);
-        WSACleanup();
-        exit(1);
+    WSADATA wsaData;
+    int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+    if (result != 0) {
+        std::cerr << "WSAStartup failed: " << result << std::endl;
     }
 }
 
 Server::~Server() {
-    closesocket(serverSocket);
+    if (listenSocket != INVALID_SOCKET) {
+        closesocket(listenSocket);
+    }
     WSACleanup();
 }
 
-bool Server::startListening() {
-    listen(serverSocket, 3);
-    std::cout << "Waiting for incoming connections..." << std::endl;
-    
-    clientAddrLen = sizeof(struct sockaddr_in);
-    clientSocket = accept(serverSocket, (struct sockaddr*)&clientAddr, &clientAddrLen);
-    if (clientSocket == INVALID_SOCKET) {
-        std::cerr << "Accept failed. Error: " << WSAGetLastError() << std::endl;
+bool Server::start() {
+    // Create socket
+    listenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (listenSocket == INVALID_SOCKET) {
+        std::cerr << "Error at socket(): " << WSAGetLastError() << std::endl;
+        WSACleanup();
         return false;
     }
-    std::cout << "Connection accepted." << std::endl;
+
+    // Setup sockaddr_in structure
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+    serverAddr.sin_port = htons(port);
+
+    // Bind socket
+    int result = bind(listenSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Bind failed: " << WSAGetLastError() << std::endl;
+        closesocket(listenSocket);
+        return false;
+    }
+
+    // Listen for incoming connections
+    result = listen(listenSocket, SOMAXCONN);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Listen failed: " << WSAGetLastError() << std::endl;
+        closesocket(listenSocket);
+        return false;
+    }
+
+    std::cout << "Server listening on port " << port << std::endl;
     return true;
 }
 
-std::string Server::receiveMessage() {
-    char buffer[1024];
-    int recvSize = recv(clientSocket, buffer, sizeof(buffer), 0);
-    if (recvSize == SOCKET_ERROR) {
-        std::cerr << "Receive failed. Error: " << WSAGetLastError() << std::endl;
-        return "";
+void Server::listenForConnections() {
+    while (true) {
+        sockaddr_in clientAddr;
+        int clientAddrSize = sizeof(clientAddr);
+        SOCKET clientSocket = accept(listenSocket, (sockaddr*)&clientAddr, &clientAddrSize);
+        if (clientSocket == INVALID_SOCKET) {
+            std::cerr << "Accept failed: " << WSAGetLastError() << std::endl;
+            continue;
+        }
+
+        // Handle the connected client synchronously
+        handleClient(clientSocket);
+
+        closesocket(clientSocket);
     }
-    buffer[recvSize] = '\0';
-    std::cout << "Received message: " << buffer << std::endl;
-    return std::string(buffer);
 }
 
-void Server::stop() {
-    closesocket(clientSocket);
-    closesocket(serverSocket);
-    WSACleanup();
+void Server::handleClient(SOCKET clientSocket) {
+    char recvbuf[512];
+    int recvbuflen = 512;
+
+    // Receive data from the client
+    int result = recv(clientSocket, recvbuf, recvbuflen, 0);
+    if (result > 0) {
+        std::string receivedMessage(recvbuf, result);
+        std::cout << "Received message: " << receivedMessage << std::endl;
+
+        if (receivedMessage == "shutdown") {
+            std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
+            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+            exit(0);  // Exit the server program
+        }
+    } else if (result == 0) {
+        std::cout << "Connection closing..." << std::endl;
+    } else {
+        std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
+    }
 }

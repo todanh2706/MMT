@@ -1,39 +1,23 @@
 #include "client_socket.h"
 #include "server_socket.h"
 #include <iostream>
-#include <thread>
 
-void runServer() {
-    Server server(8888);
-    if (server.startListening()) {
-        std::string message = server.receiveMessage();
-        if (message == "shutdown") {
-            std::cout << "Shutdown command received. Stopping server..." << std::endl;
+int main(int argc, char* argv[]) {
+    if (argc == 2 && std::string(argv[1]) == "server") {
+        // Start server
+        Server server(54000);
+        if (server.start()) {
+            server.listenForConnections();  // Synchronously listen for connections
         }
-        server.stop();
+    } else if (argc == 2 && std::string(argv[1]) == "client") {
+        // Start client
+        Client client("127.0.0.1", 54000);
+        if (client.connectToServer()) {
+            client.sendShutdownRequest();
+        }
+    } else {
+        std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
     }
-}
-
-void runClient() {
-    Client client("127.0.0.1", 8888);
-    if (client.connectToServer()) {
-        client.sendMessage("shutdown");
-        client.cleanup();
-    }
-}
-
-int main() {
-    // Run server in a separate thread
-    std::thread serverThread(runServer);
-    
-    // Wait for a moment to let server initialize
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-    
-    // Run client in the main thread
-    runClient();
-
-    // Wait for the server thread to finish
-    serverThread.join();
 
     return 0;
 }
