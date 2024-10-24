@@ -1,23 +1,24 @@
 #ifndef SERVER_SOCKET_H
 #define SERVER_SOCKET_H
 
-#include "socket.h"
+#include <winsock2.h>
+#include <string>
 
-class ServerSocket : public Socket {
+#pragma comment(lib, "ws2_32.lib")  // Winsock Library
+
+class Server {
 private:
-    sockaddr_in serverAddr, clientAddr;
-    SOCKET clientSocket;
-    int clientSize;
+    WSADATA wsa;
+    SOCKET serverSocket, clientSocket;
+    struct sockaddr_in serverAddr, clientAddr;
+    int clientAddrLen;
 
 public:
-    ServerSocket();
-    bool bindSocket(int port);
-    bool listenForConnections();
-    bool acceptConnection();
-    void handleClient();
-
-    // ************************** CODE FOR FUNCTION OF PROJECT **************************
-    
+    Server(int port);
+    ~Server();
+    bool startListening();
+    std::string receiveMessage();
+    void stop();
 };
 
-#endif  // SERVER_SOCKET_H
+#endif // SERVER_SOCKET_H

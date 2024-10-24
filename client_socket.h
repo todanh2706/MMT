@@ -1,16 +1,23 @@
 #ifndef CLIENT_SOCKET_H
 #define CLIENT_SOCKET_H
 
-#include "socket.h"
+#include <winsock2.h>
+#include <string>
 
-class ClientSocket : public Socket {
+#pragma comment(lib, "ws2_32.lib")  // Winsock Library
+
+class Client {
 private:
-    sockaddr_in serverAddr;
+    WSADATA wsa;
+    SOCKET clientSocket;
+    struct sockaddr_in serverAddr;
 
 public:
-    bool connectToServer(const char* serverIP, int port);
-
-    // ************************** CODE FOR FUNCTION OF PROJECT **************************
+    Client(const std::string& serverIP, int port);
+    ~Client();
+    bool connectToServer();
+    bool sendMessage(const std::string& message);
+    void cleanup();
 };
 
-#endif  // CLIENT_SOCKET_H
+#endif // CLIENT_SOCKET_H
