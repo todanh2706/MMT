@@ -2,9 +2,9 @@
 
 ## Build command
 - Client:
-  ```g++ -std=c++17 main.cpp server_socket.cpp client_socket.cpp -o client -lws2_32 -lgdi32 -lgdiplus -lole32 -lcurl```
+  ```g++ -std=c++17 *.cpp -o client -lws2_32 -lgdi32 -lgdiplus -lole32 -lcurl```
 - Server:
-  ```g++ -std=c++17 main.cpp server_socket.cpp client_socket.cpp -o server -lws2_32 -lgdi32 -lgdiplus -lole32 -lcurl```
+  ```g++ -std=c++17 *.cpp -o server -lws2_32 -lgdi32 -lgdiplus -lole32 -lcurl```
 ### credential.json format
 ```
 {
