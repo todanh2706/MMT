@@ -125,14 +125,11 @@ std::vector<unsigned char> Server::captureScreenshot() {
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
 
     // Capture screen to bitmap
-    HDC hScreenDC = GetDC(nullptr);
+    HDC hScreenDC = GetWindowDC(GetDesktopWindow());  // Use GetWindowDC to capture the entire screen
+    int width = GetDeviceCaps(hScreenDC, HORZRES);    // Get the full width of the screen
+    int height = GetDeviceCaps(hScreenDC, VERTRES);   // Get the full height of the screen
+
     HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
-    
-    // Get the size of the primary monitor
-    int width = GetSystemMetrics(SM_CXSCREEN);
-    int height = GetSystemMetrics(SM_CYSCREEN);
-    
-    // Create a compatible bitmap
     HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, width, height);
     
     // Select the bitmap into the memory device context
@@ -144,7 +141,7 @@ std::vector<unsigned char> Server::captureScreenshot() {
     // Restore the original bitmap and clean up GDI objects
     SelectObject(hMemoryDC, oldBitmap);
     DeleteDC(hMemoryDC);
-    ReleaseDC(nullptr, hScreenDC);
+    ReleaseDC(GetDesktopWindow(), hScreenDC);
     
     // Save bitmap to "screenshot.jpg"
     CLSID clsid;
@@ -168,13 +165,14 @@ std::vector<unsigned char> Server::captureScreenshot() {
 
 // Helper function to get CLSID of JPEG encoder
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
-    UINT num = 0, size = 0;
-    GetImageEncodersSize(&num, &size);
-    if (size == 0) return -1;
+    UINT num = 0;          // number of image encoders
+    UINT size = 0;        // size of the image encoder array in bytes
+    Gdiplus::GetImageEncodersSize(&num, &size);
+    if (size == 0) return -1; // Failure
 
     std::vector<BYTE> buffer(size);
-    ImageCodecInfo* pImageCodecInfo = reinterpret_cast<ImageCodecInfo*>(buffer.data());
-    GetImageEncoders(num, size, pImageCodecInfo);
+    Gdiplus::ImageCodecInfo* pImageCodecInfo = reinterpret_cast<Gdiplus::ImageCodecInfo*>(buffer.data());
+    Gdiplus::GetImageEncoders(num, size, pImageCodecInfo);
 
     for (UINT i = 0; i < num; ++i) {
         if (wcscmp(pImageCodecInfo[i].MimeType, format) == 0) {
@@ -182,7 +180,7 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
             return i;
         }
     }
-    return -1;
+    return -1; // Failure
 }
 
 // Function to send a screenshot image to the client
