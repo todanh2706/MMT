@@ -120,34 +120,42 @@ std::vector<unsigned char> Server::captureScreenshot() {
     std::vector<unsigned char> imageData;
 
     // Initialize GDI+
-    using namespace Gdiplus;
     GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
 
     // Capture screen to bitmap
     HDC hScreenDC = GetDC(nullptr);
-    int width = GetDeviceCaps(hScreenDC, HORZRES);
-    int height = GetDeviceCaps(hScreenDC, VERTRES);
     HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+    
+    // Get the size of the primary monitor
+    int width = GetSystemMetrics(SM_CXSCREEN);
+    int height = GetSystemMetrics(SM_CYSCREEN);
+    
+    // Create a compatible bitmap
     HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, width, height);
-
+    
+    // Select the bitmap into the memory device context
     HGDIOBJ oldBitmap = SelectObject(hMemoryDC, hBitmap);
+    
+    // BitBlt from the screen device context to the memory device context
     BitBlt(hMemoryDC, 0, 0, width, height, hScreenDC, 0, 0, SRCCOPY);
+    
+    // Restore the original bitmap and clean up GDI objects
     SelectObject(hMemoryDC, oldBitmap);
-
+    DeleteDC(hMemoryDC);
+    ReleaseDC(nullptr, hScreenDC);
+    
     // Save bitmap to "screenshot.jpg"
     CLSID clsid;
     GetEncoderClsid(L"image/jpeg", &clsid);
     Bitmap bitmap(hBitmap, nullptr);
     bitmap.Save(L"screenshot.jpg", &clsid, nullptr);
-
-    // Clean up
+    
+    // Clean up GDI objects
     DeleteObject(hBitmap);
-    DeleteDC(hMemoryDC);
-    ReleaseDC(nullptr, hScreenDC);
     GdiplusShutdown(gdiplusToken);
-
+    
     // Read the saved image into imageData
     std::ifstream file("screenshot.jpg", std::ios::binary);
     if (file.is_open()) {
