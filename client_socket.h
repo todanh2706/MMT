@@ -3,7 +3,9 @@
 
 #include <winsock2.h>
 #include <fstream>
+#include <vector>
 #include <string>
+#include <cstdint>
 
 class Client {
 public:

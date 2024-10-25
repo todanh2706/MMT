@@ -76,74 +76,119 @@ void Server::listenForConnections() {
     }
 }
 
-// Function to take a screenshot and save it as a PNG file
-void Server::takeScreenshot(const std::string& filename) {
+// // Function to take a screenshot and save it as a PNG file
+// void Server::takeScreenshot(const std::string& filename) {
+//     // Initialize GDI+
+//     GdiplusStartupInput gdiplusStartupInput;
+//     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
+//     // Get the screen dimensions
+//     HDC screenDC = GetDC(NULL);
+//     HDC memoryDC = CreateCompatibleDC(screenDC);
+//     int width = GetSystemMetrics(SM_CXSCREEN);
+//     int height = GetSystemMetrics(SM_CYSCREEN);
+
+//     // Create a compatible bitmap
+//     HBITMAP hBitmap = CreateCompatibleBitmap(screenDC, width, height);
+//     SelectObject(memoryDC, hBitmap);
+
+//     // BitBlt to copy the screen to the bitmap
+//     BitBlt(memoryDC, 0, 0, width, height, screenDC, 0, 0, SRCCOPY);
+
+//     // Create GDI+ Image from the bitmap
+//     Bitmap bitmap(hBitmap, NULL);
+//     CLSID clsid;
+//     HRESULT result = CLSIDFromString(L"{557CC3D0-1A3A-11D1-AD6E-00A0C9138F8C}", &clsid); // CLSID for PNG
+//     if (FAILED(result)) {
+//         std::cerr << "Failed to get CLSID for PNG." << std::endl;
+//         return; // Handle error appropriately
+//     }
+
+//     // Save the image as a PNG file
+//     WCHAR wFilename[MAX_PATH];
+//     MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wFilename, MAX_PATH);
+//     bitmap.Save(wFilename, &clsid, NULL);
+
+//     // Clean up
+//     DeleteObject(hBitmap);
+//     DeleteDC(memoryDC);
+//     ReleaseDC(NULL, screenDC);
+//     GdiplusShutdown(gdiplusToken);
+// }
+
+std::vector<unsigned char> Server::captureScreenshot() {
+    std::vector<unsigned char> imageData;
+
     // Initialize GDI+
+    using namespace Gdiplus;
     GdiplusStartupInput gdiplusStartupInput;
-    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+    ULONG_PTR gdiplusToken;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
 
-    // Get the screen dimensions
-    HDC screenDC = GetDC(NULL);
-    HDC memoryDC = CreateCompatibleDC(screenDC);
-    int width = GetSystemMetrics(SM_CXSCREEN);
-    int height = GetSystemMetrics(SM_CYSCREEN);
+    // Capture screen to bitmap
+    HDC hScreenDC = GetDC(nullptr);
+    int width = GetDeviceCaps(hScreenDC, HORZRES);
+    int height = GetDeviceCaps(hScreenDC, VERTRES);
+    HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+    HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, width, height);
 
-    // Create a compatible bitmap
-    HBITMAP hBitmap = CreateCompatibleBitmap(screenDC, width, height);
-    SelectObject(memoryDC, hBitmap);
+    HGDIOBJ oldBitmap = SelectObject(hMemoryDC, hBitmap);
+    BitBlt(hMemoryDC, 0, 0, width, height, hScreenDC, 0, 0, SRCCOPY);
+    SelectObject(hMemoryDC, oldBitmap);
 
-    // BitBlt to copy the screen to the bitmap
-    BitBlt(memoryDC, 0, 0, width, height, screenDC, 0, 0, SRCCOPY);
-
-    // Create GDI+ Image from the bitmap
-    Bitmap bitmap(hBitmap, NULL);
+    // Save bitmap to "screenshot.jpg"
     CLSID clsid;
-    HRESULT result = CLSIDFromString(L"{557CC3D0-1A3A-11D1-AD6E-00A0C9138F8C}", &clsid); // CLSID for PNG
-    if (FAILED(result)) {
-        std::cerr << "Failed to get CLSID for PNG." << std::endl;
-        return; // Handle error appropriately
-    }
-
-    // Save the image as a PNG file
-    WCHAR wFilename[MAX_PATH];
-    MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wFilename, MAX_PATH);
-    bitmap.Save(wFilename, &clsid, NULL);
+    GetEncoderClsid(L"image/jpeg", &clsid);
+    Bitmap bitmap(hBitmap, nullptr);
+    bitmap.Save(L"screenshot.jpg", &clsid, nullptr);
 
     // Clean up
     DeleteObject(hBitmap);
-    DeleteDC(memoryDC);
-    ReleaseDC(NULL, screenDC);
+    DeleteDC(hMemoryDC);
+    ReleaseDC(nullptr, hScreenDC);
     GdiplusShutdown(gdiplusToken);
+
+    // Read the saved image into imageData
+    std::ifstream file("screenshot.jpg", std::ios::binary);
+    if (file.is_open()) {
+        imageData.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+    }
+
+    return imageData;
+}
+
+// Helper function to get CLSID of JPEG encoder
+int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
+    UINT num = 0, size = 0;
+    GetImageEncodersSize(&num, &size);
+    if (size == 0) return -1;
+
+    std::vector<BYTE> buffer(size);
+    ImageCodecInfo* pImageCodecInfo = reinterpret_cast<ImageCodecInfo*>(buffer.data());
+    GetImageEncoders(num, size, pImageCodecInfo);
+
+    for (UINT i = 0; i < num; ++i) {
+        if (wcscmp(pImageCodecInfo[i].MimeType, format) == 0) {
+            *pClsid = pImageCodecInfo[i].Clsid;
+            return i;
+        }
+    }
+    return -1;
 }
 
 // Function to send a screenshot image to the client
-// Function to send a screenshot image to the client
-void Server::sendScreenshot(SOCKET clientSocket, const std::string& filename) {
-    std::ifstream file(filename, std::ios::binary);
-    if (!file) {
-        std::cerr << "Failed to open screenshot file: " << filename << std::endl;
-        return;
-    }
+void Server::sendScreenshot(SOCKET clientSocket, const std::string &filePath) {
+    std::vector<unsigned char> imageData = captureScreenshot();
+    uint32_t dataSize = htonl(imageData.size());
 
-    // Get file size
-    file.seekg(0, std::ios::end);
-    std::streamsize fileSize = file.tellg();
-    file.seekg(0, std::ios::beg);
+    // Send size first
+    send(clientSocket, reinterpret_cast<const char*>(&dataSize), sizeof(dataSize), 0);
 
-    // Send file size first
-    send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
-
-    // Buffer for sending the file
-    char buffer[4096];
-    while (fileSize > 0) {
-        file.read(buffer, sizeof(buffer));
-        std::streamsize bytesRead = file.gcount();
-        send(clientSocket, buffer, bytesRead, 0);
-        fileSize -= bytesRead;
-    }
-
-    std::cout << "Screenshot sent to client successfully!" << std::endl;
+    // Send image data
+    send(clientSocket, reinterpret_cast<const char*>(imageData.data()), imageData.size(), 0);
 }
+
 
 void Server::handleClient(SOCKET clientSocket) {
     char recvbuf[512];
@@ -177,10 +222,11 @@ void Server::handleClient(SOCKET clientSocket) {
         {
             std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
             // Take a screenshot and save it
-            takeScreenshot("screenshot.png"); // Save as screenshot.png
+            // takeScreenshot("screenshot.png"); // Save as screenshot.png
             std::cout << "Screenshot taken and saved as screenshot.png" << std::endl;
 
             // Send the screenshot back to the client
+            // sendScreenshot(clientSocket, "screenshot.png");
             sendScreenshot(clientSocket, "screenshot.png");
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections

