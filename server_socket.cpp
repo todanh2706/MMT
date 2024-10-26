@@ -126,6 +126,7 @@ std::vector<unsigned char> Server::captureScreenshot() {
 
     // Capture screen to bitmap
     HDC hScreenDC = GetWindowDC(GetDesktopWindow());  // Use GetWindowDC to capture the entire screen
+    // HDC hScreenDC = GetDC(nullptr);
     int width = GetDeviceCaps(hScreenDC, HORZRES);    // Get the full width of the screen
     int height = GetDeviceCaps(hScreenDC, VERTRES);   // Get the full height of the screen
 
