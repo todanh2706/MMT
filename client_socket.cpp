@@ -155,21 +155,44 @@ bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::s
     std::string request = "copy_file|" + sourceFileName + "|" + destinationFileName;
 
     // Send the request to the server
-    int sendResult = send(clientSocket, request.c_str(), request.size(), 0);
-    if (sendResult == SOCKET_ERROR) {
+    if (send(clientSocket, request.c_str(), request.size(), 0) == SOCKET_ERROR) {
         std::cerr << "Failed to send file copy request: " << WSAGetLastError() << std::endl;
         return false;
     }
 
-    // Receive the response from the server
-    char buffer[4096];
-    int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-    if (bytesReceived > 0) {
-        // Process the response (e.g., the size of the copied file)
-        std::cout << "Received response from server: " << std::string(buffer, bytesReceived) << std::endl;
-        return true;
-    } else {
-        std::cerr << "Failed to receive response: " << WSAGetLastError() << std::endl;
+    // Receive the size of the file first
+    uint32_t fileSize;
+    int bytesReceived = recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+    if (bytesReceived <= 0) {
+        std::cerr << "Failed to receive file size: " << WSAGetLastError() << std::endl;
         return false;
     }
+    fileSize = ntohl(fileSize); // Convert from network byte order to host byte order
+
+    // Now receive the actual file data
+    std::vector<char> fileData(fileSize);
+    int totalBytesReceived = 0;
+
+    while (totalBytesReceived < static_cast<int>(fileSize)) {
+        std::size_t bytesToReceive = std::min(static_cast<std::size_t>(fileSize) - totalBytesReceived, sizeof(fileData));
+
+        bytesReceived = recv(clientSocket, fileData.data() + totalBytesReceived, bytesToReceive, 0);
+        if (bytesReceived <= 0) {
+            std::cerr << "Failed to receive file data: " << WSAGetLastError() << std::endl;
+            return false;
+        }
+        totalBytesReceived += bytesReceived;
+    }
+
+    // Save the received data to a file
+    std::ofstream outputFile(destinationFileName, std::ios::binary);
+    if (!outputFile) {
+        std::cerr << "Failed to create output file: " << destinationFileName << std::endl;
+        return false;
+    }
+    outputFile.write(fileData.data(), fileSize);
+    outputFile.close();
+
+    std::cout << "File copied and saved as: " << destinationFileName << std::endl;
+    return true;
 }

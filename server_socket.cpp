@@ -251,6 +251,9 @@ void Server::handleClient(SOCKET clientSocket) {
 
             // Call the method to copy the file and send it back
             copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
+
+            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+            exit(0);  // Exit the server program
         }
     } else if (result == 0) {
         std::cout << "Connection closing..." << std::endl;
@@ -261,7 +264,6 @@ void Server::handleClient(SOCKET clientSocket) {
 
 // Implementation of copyFileAndSend
 void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName) {
-    // Open the source file for reading
     std::ifstream sourceFile(sourceFileName, std::ios::binary);
     if (!sourceFile) {
         std::string errorMessage = "Failed to open source file: " + sourceFileName;
