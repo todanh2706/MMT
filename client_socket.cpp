@@ -150,3 +150,26 @@ bool Client::sendScreenshotRequest()
     std::cout << "Screenshot received and saved as 'received_screenshot.jpg'" << std::endl;
     return true;
 }
+
+bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName) {
+    std::string request = "copy_file|" + sourceFileName + "|" + destinationFileName;
+
+    // Send the request to the server
+    int sendResult = send(clientSocket, request.c_str(), request.size(), 0);
+    if (sendResult == SOCKET_ERROR) {
+        std::cerr << "Failed to send file copy request: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+
+    // Receive the response from the server
+    char buffer[4096];
+    int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
+    if (bytesReceived > 0) {
+        // Process the response (e.g., the size of the copied file)
+        std::cout << "Received response from server: " << std::string(buffer, bytesReceived) << std::endl;
+        return true;
+    } else {
+        std::cerr << "Failed to receive response: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+}

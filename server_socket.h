@@ -11,6 +11,7 @@
 #include <fstream>
 #include <vector>
 #include <cstdint>
+#include <sstream>
 
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
@@ -41,6 +42,7 @@ private:
     // void sendScreenshot(SOCKET clientSocket, const std::string& filename);
     void sendScreenshot(SOCKET clientSocket, const std::string &filePath);
     std::vector<unsigned char> captureScreenshot();
+    void copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName);
 };
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);

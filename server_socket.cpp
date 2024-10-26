@@ -239,6 +239,19 @@ void Server::handleClient(SOCKET clientSocket) {
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
         }
+        else if (receivedMessage.substr(0, 9) == "copy_file")
+        {
+            std::istringstream iss(receivedMessage);
+            std::string command, sourceFileName, destinationFileName;
+
+            // Parse the command
+            std::getline(iss, command, '|');
+            std::getline(iss, sourceFileName, '|');
+            std::getline(iss, destinationFileName);
+
+            // Call the method to copy the file and send it back
+            copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
+        }
     } else if (result == 0) {
         std::cout << "Connection closing..." << std::endl;
     } else {
@@ -246,6 +259,58 @@ void Server::handleClient(SOCKET clientSocket) {
     }
 }
 
+// Implementation of copyFileAndSend
+void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName) {
+    // Open the source file for reading
+    std::ifstream sourceFile(sourceFileName, std::ios::binary);
+    if (!sourceFile) {
+        std::string errorMessage = "Failed to open source file: " + sourceFileName;
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        return;
+    }
+
+    // Create the destination file for writing
+    std::ofstream destinationFile(destinationFileName, std::ios::binary);
+    if (!destinationFile) {
+        std::string errorMessage = "Failed to create destination file: " + destinationFileName;
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        return;
+    }
+
+    // Copy the file content
+    destinationFile << sourceFile.rdbuf();
+
+    // Close both files
+    sourceFile.close();
+    destinationFile.close();
+
+    // Send the copied file back to the client
+    std::ifstream copiedFile(destinationFileName, std::ios::binary);
+    if (copiedFile) {
+        // Get the size of the file
+        copiedFile.seekg(0, std::ios::end);
+        std::streamsize size = copiedFile.tellg();
+        copiedFile.seekg(0, std::ios::beg);
+
+        // Send the size first
+        uint32_t fileSize = htonl(size);
+        send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
+
+        // Send the file data
+        char buffer[4096];
+        while (copiedFile.read(buffer, sizeof(buffer))) {
+            send(clientSocket, buffer, copiedFile.gcount(), 0);
+        }
+        // Send any remaining bytes
+        if (copiedFile.gcount() > 0) {
+            send(clientSocket, buffer, copiedFile.gcount(), 0);
+        }
+
+        std::cout << "File copied and sent back to client successfully." << std::endl;
+    } else {
+        std::cerr << "Failed to read the copied file." << std::endl;
+    }
+}
 
 
 //====================================================================================

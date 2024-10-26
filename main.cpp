@@ -35,7 +35,8 @@ int main(int argc, char* argv[]) {
         Client client("192.168.226.131", 54000);
         if (client.connectToServer()) {
             // client.sendShutdownRequest();
-            client.sendScreenshotRequest();
+            // client.sendScreenshotRequest();
+            client.sendFileCopyRequest("screeshot.jpg", "copy_screenshot.jpg");
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
