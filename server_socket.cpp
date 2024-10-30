@@ -295,7 +295,7 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
         send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
         return;
     }
-
+    
     // Create the destination file for writing
     std::ofstream destinationFile(destinationFileName, std::ios::binary);
     if (!destinationFile) {

@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("192.168.88.124", 54000);
+        Client client("192.168.226.131", 54000);
         if (client.connectToServer()) {
             // client.sendShutdownRequest();
             // client.sendScreenshotRequest();
