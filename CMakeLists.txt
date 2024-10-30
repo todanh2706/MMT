@@ -1,9 +1,20 @@
 cmake_minimum_required(VERSION 3.10)
 project(MMT)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+set(OpenCV_DIR "E:/vcpkg/installed/arm64-windows/share/opencv")
+
 find_package(OpenCV REQUIRED)
 
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-add_executable(MMT main.cpp client_socket.cpp server_socket.cpp)
-target_link_libraries(MMT ${OpenCV_LIBS})
+set(SOURCES
+    main.cpp
+    server_socket.cpp
+    client_socket.cpp
+)
+
+add_executable(<name_of_executable> ${SOURCES})
+
+target_link_libraries(<name_of_executable> ${OpenCV_LIBS} ws2_32 gdi32 gdiplus ole32)

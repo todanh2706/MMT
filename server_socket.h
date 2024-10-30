@@ -38,7 +38,7 @@ private:
     SOCKET listenSocket;
     ULONG_PTR gdiplusToken; // Add this member
     void handleClient(SOCKET clientSocket);
-    void takeScreenshot(const std::string& filename);
+    // void takeScreenshot(const std::string& filename);
     // void sendScreenshot(SOCKET clientSocket, const std::string& filename);
     void sendScreenshot(SOCKET clientSocket, const std::string &filePath);
     std::vector<unsigned char> captureScreenshot();

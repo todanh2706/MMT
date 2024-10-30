@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <conio.h>
+#include <windows.h>
 
 
 Client::Client(const std::string& serverIP, int port)
@@ -150,6 +151,9 @@ bool Client::sendScreenshotRequest()
     std::cout << "Screenshot received and saved as 'received_screenshot.jpg'" << std::endl;
     return true;
 }
+
+#define NOMINMAX
+#undef min
 
 bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName) {
     std::string request = "copy_file|" + sourceFileName + "|" + destinationFileName;

