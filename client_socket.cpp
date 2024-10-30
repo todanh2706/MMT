@@ -2,6 +2,7 @@
 #include <iostream>
 #include <fstream>
 #include <conio.h>
+#include <windows.h>
 
 
 Client::Client(const std::string& serverIP, int port)
@@ -151,6 +152,9 @@ bool Client::sendScreenshotRequest()
     return true;
 }
 
+#define NOMINMAX
+#undef min
+
 bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName) {
     std::string request = "copy_file|" + sourceFileName + "|" + destinationFileName;
 
@@ -160,9 +164,25 @@ bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::s
         return false;
     }
 
+    // Receive the initial response from the server (either file size or an error message)
+    char responseBuffer[256];
+    int bytesReceived = recv(clientSocket, responseBuffer, sizeof(responseBuffer) - 1, 0);
+    if (bytesReceived <= 0) {
+        std::cerr << "Failed to receive initial response from server: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    responseBuffer[bytesReceived] = '\0'; // Null-terminate the response
+
+    // Check if the response is an error message
+    std::string response(responseBuffer);
+    if (response.find("Failed") != std::string::npos) {
+        std::cerr << "Server error: " << response << std::endl;
+        return false;
+    }
+
     // Receive the size of the file first
     uint32_t fileSize;
-    int bytesReceived = recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+    bytesReceived = recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
     if (bytesReceived <= 0) {
         std::cerr << "Failed to receive file size: " << WSAGetLastError() << std::endl;
         return false;
@@ -194,5 +214,17 @@ bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::s
     outputFile.close();
 
     std::cout << "File copied and saved as: " << destinationFileName << std::endl;
+    return true;
+}
+
+bool Client::sendWebcamRequest() {
+    std::string request = "open_webcam";
+
+    if (send(clientSocket, request.c_str(), request.size(), 0) == SOCKET_ERROR) {
+        std::cerr << "Failed to send webcam request: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+
+    std::cout << "Webcam request sent to server." << std::endl;
     return true;
 }

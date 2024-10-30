@@ -32,11 +32,12 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("192.168.226.131", 54000);
+        Client client("192.168.88.124", 54000);
         if (client.connectToServer()) {
             // client.sendShutdownRequest();
             // client.sendScreenshotRequest();
-            client.sendFileCopyRequest("README.md", "copy_README.md");
+            // client.sendFileCopyRequest("CMake.txt", "copy_CMake.cpp");
+            client.sendWebcamRequest();
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
