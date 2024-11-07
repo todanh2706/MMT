@@ -188,3 +188,14 @@ bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::s
     std::cout << "File copied and saved as: " << destinationFileName << std::endl;
     return true;
 }
+
+bool Client::sendListOfAppRequest(){
+    const char* message = "ListApp";
+    int result = send(clientSocket, message, strlen(message), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    sendFileCopyRequest("applications.txt", "applications.txt");
+    return true;
+}

