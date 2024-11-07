@@ -1,6 +1,5 @@
 #include "client_socket.h"
 #include "server_socket.h"
-// #include "GmailClient.h"
 #include <iostream>
 
 int main(int argc, char* argv[]) {
@@ -28,6 +27,7 @@ int main(int argc, char* argv[]) {
         // Start server
         Server server(54000);
         if (server.start()) {
+            std::cout <<"listening";
             server.listenForConnections();  // Synchronously listen for connections
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
