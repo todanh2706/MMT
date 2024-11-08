@@ -21,6 +21,8 @@ public:
     bool sendScreenshotRequest();
     bool sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName);
     bool sendListOfAppRequest();
+    bool sendOpenAppRequest(const std::string& appName);
+    bool sendCloseAppRequest(const std::string& appName);
 
 private:
     std::string serverIP;

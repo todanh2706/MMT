@@ -60,6 +60,10 @@ private:
     //List/Turn on/Turn off App
     bool hasVisibleWindow(DWORD processID);
     void ListApplications(SOCKET);
+    void openApp(int argc, TCHAR *argv[], SOCKET clientSocket);
+    void closeApp(int argc, TCHAR *argv[], SOCKET clientSocket);
+    //List/Turn on/Turn off services
+    
 
 };
 

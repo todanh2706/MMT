@@ -199,3 +199,19 @@ bool Client::sendListOfAppRequest(){
     // sendFileCopyRequest("applications.txt", "copy_applications.txt");
     return true;
 }
+
+bool Client::sendOpenAppRequest(const std::string& appName){
+    std::string message = "openApp|" + appName;
+    int result = send(clientSocket, message.c_str(), message.size(), 0);
+    if (result == SOCKET_ERROR){
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    return true;
+
+}
+
+bool Client::sendCloseAppRequest(const std::string& appName){
+
+}
+

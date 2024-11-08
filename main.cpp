@@ -58,9 +58,9 @@ int main(int argc, char* argv[]) {
             //     // Optional delay between commands
             //     std::this_thread::sleep_for(std::chrono::seconds(1));
             // }
-            //sendListOfAppRequest();
-            client.sendListOfAppRequest();
-            client.sendFileCopyRequest("application.txt", "copy_application.txt");
+            // sendListOfAppRequest();
+            // client.sendListOfAppRequest();
+            // client.sendFileCopyRequest("application.txt", "copy_application.txt");
             //openApp
             
             //closeApp
