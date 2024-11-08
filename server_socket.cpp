@@ -230,6 +230,7 @@ void Server::handleClient(SOCKET clientSocket) {
             } else if (receivedMessage == "listApp"){
                 std::cout << "List app command received." << std::endl;
                 ListApplications(clientSocket);
+                copyFileAndSend(clientSocket, "application.txt", "copy_application.txt");
                 break;
             }
             // else if (receivedMessage == "screenshot") {
@@ -442,6 +443,5 @@ void Server::ListApplications(SOCKET clientSocket) {
 
     CloseHandle(hProcessSnap);
     outfile.close();
-    copyFileAndSend(clientSocket, "applications.txt", "applications.txt");
 }
 

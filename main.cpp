@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("192.168.2.2", 54002);
+        Client client("10.124.2.187", 54000);
         if (client.connectToServer()) {
             std::string command;
             // // Keylogger
@@ -58,7 +58,12 @@ int main(int argc, char* argv[]) {
             //     // Optional delay between commands
             //     std::this_thread::sleep_for(std::chrono::seconds(1));
             // }
+            //sendListOfAppRequest();
             client.sendListOfAppRequest();
+            client.sendFileCopyRequest("application.txt", "copy_application.txt");
+            //openApp
+            
+            //closeApp
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
