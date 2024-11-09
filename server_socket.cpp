@@ -1,5 +1,6 @@
 #include "server_socket.h"
 
+
 Server::Server(int port)
     : port(port), listenSocket(INVALID_SOCKET) {
     // Initialize Winsock
@@ -234,13 +235,13 @@ void Server::handleClient(SOCKET clientSocket) {
                 break;
             }
             else if(receivedMessage.substr(0, 7) == "openApp"){
-                std::cout << "Open app command receive." << std::endl;
+                std::cout << "Open app command received." << std::endl;
                 std::string appNameStr = receivedMessage.substr(9);
-                std::wstring appNameWstr(appNameStr.begin(), appNameStr.end());
-                TCHAR* appName = const_cast<TCHAR*>(appNameWstr.c_str());
+                openApp(appNameStr, clientSocket);
+
 
                 // Prepare the arguments for the `openApp` function.
-                TCHAR* args[] = { _T("Program"), appName };
+
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -452,44 +453,24 @@ void Server::ListApplications(SOCKET clientSocket) {
 }
 
 //open/close app https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes?redirectedfrom=MSDN
-void Server::openApp(int argc, TCHAR *argv[], SOCKET clientSocket)
+void Server::openApp(const std::string& appName, SOCKET clientSocket)
 {
-    STARTUPINFO si;
-    PROCESS_INFORMATION pi;
+    HINSTANCE hInstance = ShellExecute(
+        NULL,           // No parent window
+        "open",         // Action to perform
+        appName.c_str(),// Application name
+        NULL,           // No parameters
+        NULL,           // Default directory
+        SW_SHOWNORMAL   // Show the application window normally
+    );
 
-    ZeroMemory( &si, sizeof(si) );
-    si.cb = sizeof(si);
-    ZeroMemory( &pi, sizeof(pi) );
-
-    if( argc != 2 )
-    {
-        printf("Usage: %s [cmdline]\n", argv[0]);
-        return;
+    if ((INT_PTR)hInstance <= 32) {
+        // Error handling if ShellExecute fails
+        std::string errorMessage = "Failed to open application: " + appName;
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        std::cerr << "ShellExecute failed with error code: " << (INT_PTR)hInstance << std::endl;
+    } else {
+        std::string message = "Successfully opened " + appName;
+        send(clientSocket, message.c_str(), message.size(), 0);
     }
-
-    // Start the child process. 
-    if( !CreateProcess( NULL,   // No module name (use command line)
-        argv[1],        // Command line
-        NULL,           // Process handle not inheritable
-        NULL,           // Thread handle not inheritable
-        FALSE,          // Set handle inheritance to FALSE
-        0,              // No creation flags
-        NULL,           // Use parent's environment block
-        NULL,           // Use parent's starting directory 
-        &si,            // Pointer to STARTUPINFO structure
-        &pi )           // Pointer to PROCESS_INFORMATION structure
-    ) 
-    {
-        printf( "CreateProcess failed (%d).\n", GetLastError() );
-        return;
-    }
-
-    // Wait until child process exits.
-    WaitForSingleObject( pi.hProcess, INFINITE );
-
-    // Close process and thread handles. 
-    CloseHandle( pi.hProcess );
-    CloseHandle( pi.hThread );
-    std::string message = "Sucessfully open file";
-    send(clientSocket, message.c_str(), message.size(), 0);
 }
