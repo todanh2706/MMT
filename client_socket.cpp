@@ -145,7 +145,7 @@ bool Client::sendScreenshotRequest()
 
 bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName) {
     std::string request = "copy_file|" + sourceFileName + "|" + destinationFileName;
-
+    
     // Send the request to the server
     if (send(clientSocket, request.c_str(), request.size(), 0) == SOCKET_ERROR) {
         std::cerr << "Failed to send file copy request: " << WSAGetLastError() << std::endl;
@@ -208,6 +208,17 @@ bool Client::sendOpenAppRequest(const std::string& appName){
         return false;
     }
     return true;
-
 }
+
+bool Client::sendCloseAppRequest(const std::string& appName){
+    std::string message = "closeApp|" + appName;
+    int result = send(clientSocket, message.c_str(), message.size(), 0);
+    if (result == SOCKET_ERROR){
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+
 

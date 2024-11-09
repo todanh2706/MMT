@@ -236,12 +236,13 @@ void Server::handleClient(SOCKET clientSocket) {
             }
             else if(receivedMessage.substr(0, 7) == "openApp"){
                 std::cout << "Open app command received." << std::endl;
-                std::string appNameStr = receivedMessage.substr(9);
-                openApp(appNameStr, clientSocket);
-
-
-                // Prepare the arguments for the `openApp` function.
-
+                std::string appNameStr = receivedMessage.substr(8);
+                openApp(appNameStr, 1, clientSocket);
+            }
+            else if(receivedMessage.substr(0, 7) == "closeApp"){
+                std::cout << "Close app command received." << std::endl;
+                std::string appNameStr = receivedMessage.substr(8);
+                openApp(appNameStr, 0, clientSocket);
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -453,11 +454,11 @@ void Server::ListApplications(SOCKET clientSocket) {
 }
 
 //open/close app https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes?redirectedfrom=MSDN
-void Server::openApp(const std::string& appName, SOCKET clientSocket)
+void Server::openApp(const std::string& appName, bool status, SOCKET clientSocket)
 {
     HINSTANCE hInstance = ShellExecute(
         NULL,           // No parent window
-        "open",         // Action to perform
+        (status == 1 ? "open" : "close"),         // Action to perform
         appName.c_str(),// Application name
         NULL,           // No parameters
         NULL,           // Default directory
