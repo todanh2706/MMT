@@ -211,7 +211,3 @@ bool Client::sendOpenAppRequest(const std::string& appName){
 
 }
 
-bool Client::sendCloseAppRequest(const std::string& appName){
-
-}
-

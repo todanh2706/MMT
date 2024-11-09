@@ -235,13 +235,12 @@ void Server::handleClient(SOCKET clientSocket) {
             }
             else if(receivedMessage.substr(0, 7) == "openApp"){
                 std::cout << "Open app command receive." << std::endl;
-                std::string appName = receivedMessage.substr(9);
-                size_t size = appName.size() + 1;  // Including null terminator
-                TCHAR* appNameTChar = new TCHAR[size];
-                
-                MultiByteToWideChar(CP_UTF8, 0, appName.c_str(), -1, appNameTChar, size);
-                openApp(1, &appNameTChar, clientSocket);
-                delete[] appNameTChar;
+                std::string appNameStr = receivedMessage.substr(9);
+                std::wstring appNameWstr(appNameStr.begin(), appNameStr.end());
+                TCHAR* appName = const_cast<TCHAR*>(appNameWstr.c_str());
+
+                // Prepare the arguments for the `openApp` function.
+                TCHAR* args[] = { _T("Program"), appName };
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;

@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("10.124.2.187", 54000);
+        Client client("192.168.1.18", 54000);
         if (client.connectToServer()) {
             std::string command;
             // // Keylogger
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
             // client.sendListOfAppRequest();
             // client.sendFileCopyRequest("application.txt", "copy_application.txt");
             //openApp
-            
+            client.sendOpenAppRequest("notepad.exe");
             //closeApp
         }
     } else {

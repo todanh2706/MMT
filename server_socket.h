@@ -19,7 +19,7 @@
 #include <cstdint>
 #include <sstream>
 #include <map> //using for keyLogger
-
+#include <tchar.h> //using for open App
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
 #define NO_ERROR 0
