@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("172.20.10.2", 54000);
+        Client client("172.20.10.2", 54001);
         if (client.connectToServer()) {
             std::string command;
             // // Keylogger
@@ -61,12 +61,12 @@ int main(int argc, char* argv[]) {
             // sendListOfAppRequest();
             // client.sendListOfAppRequest();
             // client.sendFileCopyRequest("application.txt", "copy_application.txt");
-            //openApp
-            const std::string& std = "msedge.exe";
-            client.sendOpenAppRequest(std);
-            //closeApp
+            // //openApp
             const std::string& std = "msedge.exe";
             client.sendCloseAppRequest(std);
+            //closeApp
+            // const std::string& std = "msedge.exe";
+            // client.sendCloseAppRequest(std);
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;

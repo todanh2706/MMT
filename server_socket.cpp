@@ -237,12 +237,12 @@ void Server::handleClient(SOCKET clientSocket) {
             else if(receivedMessage.substr(0, 7) == "openApp"){
                 std::cout << "Open app command received." << std::endl;
                 std::string appNameStr = receivedMessage.substr(8);
-                openApp(appNameStr, 1, clientSocket);
+                openApp(appNameStr, clientSocket);
             }
-            else if(receivedMessage.substr(0, 7) == "closeApp"){
+            else if(receivedMessage.substr(0, 8) == "closeApp"){
                 std::cout << "Close app command received." << std::endl;
-                std::string appNameStr = receivedMessage.substr(8);
-                openApp(appNameStr, 0, clientSocket);
+                std::string appNameStr = receivedMessage.substr(9);
+                openApp(appNameStr, clientSocket);
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -454,11 +454,11 @@ void Server::ListApplications(SOCKET clientSocket) {
 }
 
 //open/close app https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes?redirectedfrom=MSDN
-void Server::openApp(const std::string& appName, bool status, SOCKET clientSocket)
+void Server::openApp(const std::string& appName, SOCKET clientSocket)
 {
     HINSTANCE hInstance = ShellExecute(
         NULL,           // No parent window
-        (status == 1 ? "open" : "close"),         // Action to perform
+        "open",         // Action to perform
         appName.c_str(),// Application name
         NULL,           // No parameters
         NULL,           // Default directory
@@ -472,6 +472,28 @@ void Server::openApp(const std::string& appName, bool status, SOCKET clientSocke
         std::cerr << "ShellExecute failed with error code: " << (INT_PTR)hInstance << std::endl;
     } else {
         std::string message = "Successfully opened " + appName;
+        send(clientSocket, message.c_str(), message.size(), 0);
+    }
+}
+
+void Server::closeApp(const std::string& windowTitle, SOCKET clientSocket)
+{
+    // Find the window by title
+    HWND hwnd = FindWindow(NULL, windowTitle.c_str());
+    if (hwnd == NULL) {
+        std::string errorMessage = "Failed to find application window: " + windowTitle;
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        std::cerr << "FindWindow failed. Application window not found." << std::endl;
+        return;
+    }
+
+    // Send WM_CLOSE message to the window
+    if (!PostMessage(hwnd, WM_CLOSE, 0, 0)) {
+        std::string errorMessage = "Failed to send close message to application: " + windowTitle;
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        std::cerr << "PostMessage failed." << std::endl;
+    } else {
+        std::string message = "Successfully closed " + windowTitle;
         send(clientSocket, message.c_str(), message.size(), 0);
     }
 }
