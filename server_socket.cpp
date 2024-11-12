@@ -55,6 +55,11 @@ bool Server::start() {
         return false;
     }
 
+    int timeout = 60000; // 60 second
+    setsockopt(listenSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+    setsockopt(listenSocket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
+
+
     std::cout << "Server listening on port " << port << std::endl;
     return true;
 }
@@ -76,126 +81,77 @@ void Server::listenForConnections() {
     }
 }
 
-// // Function to take a screenshot and save it as a PNG file
-// void Server::takeScreenshot(const std::string& filename) {
-//     // Initialize GDI+
-//     GdiplusStartupInput gdiplusStartupInput;
-//     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+bool Server::captureScreenshot(cv::Mat& outImage) {
 
-//     // Get the screen dimensions
-//     HDC screenDC = GetDC(NULL);
-//     HDC memoryDC = CreateCompatibleDC(screenDC);
-//     int width = GetSystemMetrics(SM_CXSCREEN);
-//     int height = GetSystemMetrics(SM_CYSCREEN);
-
-//     // Create a compatible bitmap
-//     HBITMAP hBitmap = CreateCompatibleBitmap(screenDC, width, height);
-//     SelectObject(memoryDC, hBitmap);
-
-//     // BitBlt to copy the screen to the bitmap
-//     BitBlt(memoryDC, 0, 0, width, height, screenDC, 0, 0, SRCCOPY);
-
-//     // Create GDI+ Image from the bitmap
-//     Bitmap bitmap(hBitmap, NULL);
-//     CLSID clsid;
-//     HRESULT result = CLSIDFromString(L"{557CC3D0-1A3A-11D1-AD6E-00A0C9138F8C}", &clsid); // CLSID for PNG
-//     if (FAILED(result)) {
-//         std::cerr << "Failed to get CLSID for PNG." << std::endl;
-//         return; // Handle error appropriately
-//     }
-
-//     // Save the image as a PNG file
-//     WCHAR wFilename[MAX_PATH];
-//     MultiByteToWideChar(CP_UTF8, 0, filename.c_str(), -1, wFilename, MAX_PATH);
-//     bitmap.Save(wFilename, &clsid, NULL);
-
-//     // Clean up
-//     DeleteObject(hBitmap);
-//     DeleteDC(memoryDC);
-//     ReleaseDC(NULL, screenDC);
-//     GdiplusShutdown(gdiplusToken);
-// }
-
-std::vector<unsigned char> Server::captureScreenshot() {
-    std::vector<unsigned char> imageData;
-
-    // Initialize GDI+
+    // Khởi tạo GDI+
     GdiplusStartupInput gdiplusStartupInput;
     ULONG_PTR gdiplusToken;
     GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
 
-    // Capture screen to bitmap
-    HDC hScreenDC = GetWindowDC(GetDesktopWindow());  // Use GetWindowDC to capture the entire screen
-    // HDC hScreenDC = GetDC(nullptr);
-    int width = GetDeviceCaps(hScreenDC, HORZRES);    // Get the full width of the screen
-    int height = GetDeviceCaps(hScreenDC, VERTRES);   // Get the full height of the screen
+    // Lấy kích thước màn hình
+    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
 
+    // Tạo DC cho màn hình và bộ nhớ
+    HDC hScreenDC = GetDC(nullptr);
     HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
-    HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, width, height);
-    
-    // Select the bitmap into the memory device context
-    HGDIOBJ oldBitmap = SelectObject(hMemoryDC, hBitmap);
-    
-    // BitBlt from the screen device context to the memory device context
-    BitBlt(hMemoryDC, 0, 0, width, height, hScreenDC, 0, 0, SRCCOPY);
-    
-    // Restore the original bitmap and clean up GDI objects
-    SelectObject(hMemoryDC, oldBitmap);
-    DeleteDC(hMemoryDC);
-    ReleaseDC(GetDesktopWindow(), hScreenDC);
-    
-    // Save bitmap to "screenshot.jpg"
-    CLSID clsid;
-    GetEncoderClsid(L"image/jpeg", &clsid);
+
+    // Tạo bitmap tương thích với màn hình
+    HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, screenWidth, screenHeight);
+    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemoryDC, hBitmap);
+
+    // Sao chép màn hình vào bitmap
+    BitBlt(hMemoryDC, 0, 0, screenWidth, screenHeight, hScreenDC, 0, 0, SRCCOPY);
+
+    // Chuyển đổi HBITMAP sang GDI+ Bitmap
     Bitmap bitmap(hBitmap, nullptr);
-    bitmap.Save(L"screenshot.jpg", &clsid, nullptr);
-    
-    // Clean up GDI objects
+
+    // Lưu dữ liệu bitmap vào đối tượng cv::Mat
+    BitmapData bitmapData;
+    Rect rect(0, 0, screenWidth, screenHeight);
+    if (bitmap.LockBits(&rect, ImageLockModeRead, PixelFormat24bppRGB, &bitmapData) == Ok) {
+        cv::Mat temp(screenHeight, screenWidth, CV_8UC3, bitmapData.Scan0, bitmapData.Stride);
+        temp.copyTo(outImage); // Sao chép dữ liệu vào ảnh đầu ra
+        bitmap.UnlockBits(&bitmapData);
+    } else {
+        std::cerr << "Failed to lock GDI+ bitmap.\n";
+        return false;
+    }
+
+    // Dọn dẹp
+    SelectObject(hMemoryDC, hOldBitmap);
     DeleteObject(hBitmap);
+    DeleteDC(hMemoryDC);
+    ReleaseDC(nullptr, hScreenDC);
+
+    // Tắt GDI+
     GdiplusShutdown(gdiplusToken);
-    
-    // Read the saved image into imageData
-    std::ifstream file("screenshot.jpg", std::ios::binary);
-    if (file.is_open()) {
-        imageData.assign((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
-        file.close();
+    return true;
+}
+
+bool Server::captureAndSendScreenshot(SOCKET clientSocket) {
+    cv::Mat screenshot;
+    if (!captureScreenshot(screenshot)) {
+        std::cerr << "Failed to capture screenshot.\n";
+        return false;
     }
 
-    return imageData;
-}
+    std::vector<uchar> buffer;
+    cv::imencode(".jpg", screenshot, buffer);  // Encode as JPG
+    cv::imwrite("screenshot.jpg", screenshot);
 
-// Helper function to get CLSID of JPEG encoder
-int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
-    UINT num = 0;          // number of image encoders
-    UINT size = 0;        // size of the image encoder array in bytes
-    Gdiplus::GetImageEncodersSize(&num, &size);
-    if (size == 0) return -1; // Failure
-
-    std::vector<BYTE> buffer(size);
-    Gdiplus::ImageCodecInfo* pImageCodecInfo = reinterpret_cast<Gdiplus::ImageCodecInfo*>(buffer.data());
-    Gdiplus::GetImageEncoders(num, size, pImageCodecInfo);
-
-    for (UINT i = 0; i < num; ++i) {
-        if (wcscmp(pImageCodecInfo[i].MimeType, format) == 0) {
-            *pClsid = pImageCodecInfo[i].Clsid;
-            return i;
-        }
+    int dataSize = buffer.size();
+    if (send(clientSocket, reinterpret_cast<const char*>(&dataSize), sizeof(dataSize), 0) == SOCKET_ERROR) {
+        std::cerr << "Failed to send data size.\n";
+        return false;
     }
-    return -1; // Failure
+
+    if (send(clientSocket, reinterpret_cast<const char*>(buffer.data()), dataSize, 0) == SOCKET_ERROR) {
+        std::cerr << "Failed to send image data.\n";
+        return false;
+    }
+    return true;
 }
-
-// Function to send a screenshot image to the client
-void Server::sendScreenshot(SOCKET clientSocket, const std::string &filePath) {
-    std::vector<unsigned char> imageData = captureScreenshot();
-    uint32_t dataSize = htonl(static_cast<u_long>(imageData.size()));
-
-    // Send size first
-    send(clientSocket, reinterpret_cast<const char*>(&dataSize), sizeof(dataSize), 0);
-
-    // Send image data
-    send(clientSocket, reinterpret_cast<const char*>(imageData.data()), static_cast<int>(imageData.size()), 0);
-}
-
 
 void Server::handleClient(SOCKET clientSocket) {
     char recvbuf[512];
@@ -237,14 +193,16 @@ void Server::handleClient(SOCKET clientSocket) {
         }
         else if (receivedMessage == "screenshot")
         {
-            std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
+            std::cout << "Screenshot command received.\n";
             // Take a screenshot and save it
             // takeScreenshot("screenshot.png"); // Save as screenshot.png
-            std::cout << "Screenshot taken and saved as screenshot.png" << std::endl;
 
             // Send the screenshot back to the client
             // sendScreenshot(clientSocket, "screenshot.png");
-            sendScreenshot(clientSocket, "screenshot.png");
+            // saveScreenshot(clientSocket);
+            bool check = captureAndSendScreenshot(clientSocket);
+
+            if (check) std::cout << "Screenshot saved as screenshot.jpg and sent to client!\n";
 
             // std::cout << "Press enter to exit!";
             // std::cin.get();
@@ -265,9 +223,6 @@ void Server::handleClient(SOCKET clientSocket) {
             // Call the method to copy the file and send it back
             copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
 
-            // std::cout << "Press enter to exit!";
-            // std::cin.get();
-
             closesocket(listenSocket);  // Close listening socket to stop accepting new connections
             exit(0);  // Exit the server program
         }
@@ -287,9 +242,7 @@ void Server::handleClient(SOCKET clientSocket) {
 
 // Implementation of copyFileAndSend
 void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName) {
-    std::cout << "Check" << std::endl;
     std::ifstream sourceFile(sourceFileName, std::ios::binary);
-    std::cout << "Check" << std::endl;
     if (!sourceFile) {
         std::string errorMessage = "Failed to open source file: " + sourceFileName;
         send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
@@ -324,7 +277,7 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
         send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
 
         // Send the file data
-        char buffer[4096];
+        char buffer[1024];
         while (copiedFile.read(buffer, sizeof(buffer))) {
             send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
@@ -486,11 +439,31 @@ void Server::openWebcam(SOCKET clientSocket) {
     send(clientSocket, successMessage.c_str(), static_cast<int>(successMessage.size()), 0);
     std::cout << successMessage << std::endl;
 
+    char recvbuf[512];
+    int recvbuflen = 512;
     cv::Mat frame;
     while (true) {
         webcam >> frame; // Capture a new frame
         if (frame.empty()) break; // Check if frame is empty
         cv::imshow("Webcam Feed", frame); // Display the frame
+        
+
+        // Receive data from the client
+        int result = recv(clientSocket, recvbuf, recvbuflen, 0);
+        if (result > 0)
+        {
+            std::string receivedmessage(recvbuf, result);
+
+            if (receivedmessage == "close_webcam")
+            {
+                break;
+            }
+            else if (receivedmessage == "start_webcam")
+            {
+                startRecording(webcam, clientSocket);
+                break;
+            }
+        }
 
         // You may want to send this frame to the client
         // (Add your frame sending logic here if needed)
@@ -501,5 +474,75 @@ void Server::openWebcam(SOCKET clientSocket) {
     webcam.release(); // Release the camera
     cv::destroyAllWindows(); // Close any OpenCV windows
 
-    // Capture loop can be implemented here, for now, we just open the webcam
+}
+
+void Server::startRecording(cv::VideoCapture& webcam, SOCKET clientSocket)
+{
+    cv::VideoWriter videoWriter;
+    videoWriter.open("Video.mp4", cv::VideoWriter::fourcc('H', '2', '6', '4'), 30, cv::Size(640, 480));
+    
+    if (!videoWriter.isOpened())
+    {
+        std::cerr << "Failed to open video writer." << std::endl;
+        return;
+    }
+
+    char recvbuf[512];
+    int recvbuflen = 512;
+    recording = true;
+    std::thread([this, &videoWriter, &webcam, &clientSocket, &recvbuf, &recvbuflen]() {
+        cv::Mat frame;
+        while (recording)
+        {
+            webcam >> frame;
+            if (frame.empty()) break;
+            videoWriter.write(frame);
+
+            int result = recv(clientSocket, recvbuf, recvbuflen, 0);
+            if (result > 0)
+            {
+                std::string receivedmessage(recvbuf, result);
+                if (receivedmessage == "stop_webcam") {
+                    videoWriter.release();
+                    stopRecording(clientSocket);
+                    break;
+                }
+            }
+            cv::waitKey(30);
+        }
+        if (videoWriter.isOpened()) videoWriter.release();
+    }).detach();
+}
+
+void Server::stopRecording(SOCKET clientSocket)
+{
+    recording = false;
+    std::cout << "Recording stopped." << std::endl;
+
+    std::ifstream videoFile("Video.mp4", std::ios::binary);
+    if (!videoFile)
+    {
+        std::cerr << "Failed to open recorded video." << std::endl;
+        return;
+    }
+
+    videoFile.seekg(0, std::ios::end);
+    std::streamsize fileSize = videoFile.tellg();
+    videoFile.seekg(0, std::ios::beg);
+
+    // Send the file size
+    uint32_t fileSizeNetworkOrder = htonl(static_cast<uint32_t>(fileSize));
+    send(clientSocket, reinterpret_cast<const char*>(&fileSizeNetworkOrder), sizeof(fileSizeNetworkOrder), 0);
+
+    // Send the video data
+    char buffer[4096];
+    while (videoFile.read(buffer, sizeof(buffer))) {
+        send(clientSocket, buffer, static_cast<int>(videoFile.gcount()), 0);
+    }
+    // Send any remaining bytes
+    if (videoFile.gcount() > 0) {
+        send(clientSocket, buffer, static_cast<int>(videoFile.gcount()), 0);
+    }
+
+    videoFile.close();
 }
