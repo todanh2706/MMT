@@ -67,14 +67,10 @@ private:
     //List/Turn on/Turn off App
     bool hasVisibleWindow(DWORD processID);
     void ListApplications(SOCKET);
-    void openApp(const std::string& appName, SOCKET clientSocket);
-    void closeApp(const std::string& appName, SOCKET clientSocket);
+    void openProcess(const DWORD processID, SOCKET clientSocket);
+    void closeProcess(const DWORD processID, SOCKET clientSocket);
     //List/Turn on/Turn off services
     void ListServices(SOCKET);
-    void openService();
-    void closeService();
-    
-
 };
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);

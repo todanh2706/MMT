@@ -412,17 +412,6 @@ void Server::keyLogger() {
     outputFile.close();  
 }
 
-BOOL IsAltTabWindow(HWND hwnd){
-    // Start at the root owner
-    HWND hwndWalk = GetAncestor(hwnd, GA_ROOTOWNER);
-    // See if we are the last active visible popup
-    HWND hwndTry;
-    while ((hwndTry = GetLastActivePopup(hwndWalk)) != hwndTry) {
-    if (IsWindowVisible(hwndTry)) break;
-    hwndWalk = hwndTry;
-    }
-    return hwndWalk == hwnd;
-}
 
 bool Server::hasVisibleWindow(DWORD processID) {
     HWND hwnd = GetTopWindow(NULL);
@@ -473,7 +462,7 @@ void Server::ListApplications(SOCKET clientSocket) {
 }
 
 //open/close app https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes?redirectedfrom=MSDN
-void Server::openApp(const std::string& appName, SOCKET clientSocket)
+void Server::openProcess(const std::string& appName, SOCKET clientSocket)
 {
     HINSTANCE hInstance = ShellExecute(
         NULL,           // No parent window
@@ -495,28 +484,29 @@ void Server::openApp(const std::string& appName, SOCKET clientSocket)
     }
 }
 
-void Server::closeApp(const std::string& windowTitle, SOCKET clientSocket)
+void Server::closeProcess(const DWORD processId, SOCKET clientSocket) //chatgpt
 {
-    // Find the window by title
-    HWND hwnd = FindWindow(NULL, windowTitle.c_str());
-    if (hwnd == NULL) {
-        std::string errorMessage = "Failed to find application window: " + windowTitle;
+    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, processId);
+    if (hProcess == NULL) {
+        std::string errorMessage = "Failed to open process with ID: " + std::to_string(processId);
         send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
-        std::cerr << "FindWindow failed. Application window not found." << std::endl;
+        std::cerr << "OpenProcess failed with error code: " << GetLastError() << std::endl;
         return;
     }
 
-    // Send WM_CLOSE message to the window
-    if (!PostMessage(hwnd, WM_CLOSE, 0, 0)) {
-        std::string errorMessage = "Failed to send close message to application: " + windowTitle;
+    // Terminate the process
+    if (!TerminateProcess(hProcess, 0)) {
+        std::string errorMessage = "Failed to terminate process with ID: " + std::to_string(processId);
         send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
-        std::cerr << "PostMessage failed." << std::endl;
+        std::cerr << "TerminateProcess failed with error code: " << GetLastError() << std::endl;
     } else {
-        std::string message = "Successfully closed " + windowTitle;
+        std::string message = "Successfully terminated process with ID: " + std::to_string(processId);
         send(clientSocket, message.c_str(), message.size(), 0);
     }
-}
 
+    // Close the handle to the process
+    CloseHandle(hProcess);
+}
 //List services
 void Server::ListServices(SOCKET clientSocket){
         SC_HANDLE scmHandle = OpenSCManager(nullptr, nullptr, SC_MANAGER_ENUMERATE_SERVICE);
