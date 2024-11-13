@@ -8,18 +8,25 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <winerror.h>
-#include <tlhelp32.h> //using for list app
 #include <string>
 #include <iostream> 
-#include <thread> //using for keyLogger
-#include <mutex> //using for keyLogger
 #include <gdiplus.h>
 #include <fstream>
 #include <vector>
 #include <cstdint>
 #include <sstream>
 #include <map> //using for keyLogger
-#include <tchar.h> //using for open App
+#include <thread> //using for keyLogger
+#include <mutex> //using for keyLogger
+#include <tlhelp32.h> //using for list app
+#include <ctime> //using for list app
+#include <tchar.h> //using for open App / printServices
+#include <iomanip> //using for file
+#include <chrono> //using for file
+#include <ctime> //using for file
+
+
+
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
 #define NO_ERROR 0
@@ -63,6 +70,9 @@ private:
     void openApp(const std::string& appName, SOCKET clientSocket);
     void closeApp(const std::string& appName, SOCKET clientSocket);
     //List/Turn on/Turn off services
+    void ListServices(SOCKET);
+    void openService();
+    void closeService();
     
 
 };

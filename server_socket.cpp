@@ -231,8 +231,7 @@ void Server::handleClient(SOCKET clientSocket) {
             } else if (receivedMessage == "listApp"){
                 std::cout << "List app command received." << std::endl;
                 ListApplications(clientSocket);
-                // copyFileAndSend(clientSocket, "application.txt", "copy_application.txt");
-                break;
+                copyFileAndSend(clientSocket, "applications.txt", "copy_application.txt");
             }
             else if(receivedMessage.substr(0, 7) == "openApp"){
                 std::cout << "Open app command received." << std::endl;
@@ -243,6 +242,10 @@ void Server::handleClient(SOCKET clientSocket) {
                 std::cout << "Close app command received." << std::endl;
                 std::string appNameStr = receivedMessage.substr(9);
                 openApp(appNameStr, clientSocket);
+            }
+            else if(receivedMessage == "listService"){
+                std::cout << "List service command received." << std::endl;
+                ListServices(clientSocket);
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -410,6 +413,18 @@ void Server::keyLogger() {
     outputFile.close();  
 }
 
+BOOL IsAltTabWindow(HWND hwnd){
+    // Start at the root owner
+    HWND hwndWalk = GetAncestor(hwnd, GA_ROOTOWNER);
+    // See if we are the last active visible popup
+    HWND hwndTry;
+    while ((hwndTry = GetLastActivePopup(hwndWalk)) != hwndTry) {
+    if (IsWindowVisible(hwndTry)) break;
+    hwndWalk = hwndTry;
+    }
+    return hwndWalk == hwnd;
+}
+
 bool Server::hasVisibleWindow(DWORD processID) {
     HWND hwnd = GetTopWindow(NULL);
     while (hwnd) {
@@ -423,6 +438,7 @@ bool Server::hasVisibleWindow(DWORD processID) {
     return false;
 }
 
+//List app https://stackoverflow.com/questions/77231403/get-a-list-of-open-application-windows-in-c-windows
 void Server::ListApplications(SOCKET clientSocket) {
     HANDLE hProcessSnap;
     PROCESSENTRY32 pe32;
@@ -441,9 +457,10 @@ void Server::ListApplications(SOCKET clientSocket) {
         CloseHandle(hProcessSnap);
         return;
     }
-
+    
     do {
         if (hasVisibleWindow(pe32.th32ProcessID)) {
+            
             outfile << "Application Name: " << pe32.szExeFile << "\n";
             outfile << "Process ID: " << pe32.th32ProcessID << "\n\n";
         }
@@ -497,3 +514,88 @@ void Server::closeApp(const std::string& windowTitle, SOCKET clientSocket)
         send(clientSocket, message.c_str(), message.size(), 0);
     }
 }
+
+//List services
+void Server::ListServices(SOCKET clientSocket){
+        SC_HANDLE scmHandle = OpenSCManager(nullptr, nullptr, SC_MANAGER_ENUMERATE_SERVICE);
+        if (!scmHandle) {
+            std::cerr << "Failed to open Service Control Manager." << std::endl;
+            return;
+        }
+        
+        // Define variables to hold service information
+        DWORD bytesNeeded = 0, serviceCount = 0;
+        DWORD resumeHandle = 0;
+        ENUM_SERVICE_STATUS_PROCESS* serviceStatus = nullptr;
+
+        // Query the number of services
+        EnumServicesStatusEx(
+            scmHandle,
+            SC_ENUM_PROCESS_INFO,
+            SERVICE_WIN32,
+            SERVICE_STATE_ALL,
+            nullptr,
+            0,
+            &bytesNeeded,
+            &serviceCount,
+            &resumeHandle,
+            nullptr
+        );
+
+        // Allocate memory for the service information
+        serviceStatus = (ENUM_SERVICE_STATUS_PROCESS*)malloc(bytesNeeded);
+        if (!serviceStatus) {
+            std::cerr << "Memory allocation failed." << std::endl;
+            CloseServiceHandle(scmHandle);
+            return;
+        }
+
+        // Retrieve the list of services
+        if (!EnumServicesStatusEx(
+            scmHandle,
+            SC_ENUM_PROCESS_INFO,
+            SERVICE_WIN32,
+            SERVICE_STATE_ALL,
+            (LPBYTE)serviceStatus,
+            bytesNeeded,
+            &bytesNeeded,
+            &serviceCount,
+            &resumeHandle,
+            nullptr
+        )) {
+            std::cerr << "Failed to enumerate services." << std::endl;
+            free(serviceStatus);
+            CloseServiceHandle(scmHandle);
+            return;
+        }
+        std::ofstream ofs("ListOfServices.txt");
+        if(!ofs.is_open()){
+            std::cout << "cannot open file";
+            free(serviceStatus);
+            CloseServiceHandle(scmHandle);
+            return;
+        }
+
+
+        // Loop through the services and print the ones that are running
+          // Determine the maximum width for service names
+         auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
+        ofs << "Current time:" << ctime(&timenow) << std::endl;
+        ofs << "Services name" << std::setw(35) << "Process ID" << std::endl;
+        for (DWORD i = 0; i < serviceCount; ++i) {
+            if (serviceStatus[i].ServiceStatusProcess.dwCurrentState == SERVICE_RUNNING) {
+             
+                ofs << std::left << std::setw(40)
+                << serviceStatus[i].lpServiceName  // Service name
+                << std::right << serviceStatus[i].ServiceStatusProcess.dwProcessId  // Process ID
+                << std::endl;
+            }
+        }
+
+        // Clean up
+        free(serviceStatus);
+        CloseServiceHandle(scmHandle);
+        ofs.close();
+        copyFileAndSend(clientSocket, "ListOfServices.txt", "copy_ListOfServices.txt");
+}
+//open/close services
