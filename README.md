@@ -1,12 +1,12 @@
 # MMT 
 
+# Build command with CMake
+- Client (in build folder): cmake --build .
+- Server (in build folder): cmake --build .
 
-# Build command
-- Client: g++ -std=c++17 main.cpp server_socket.cpp client_socket.cpp -o client -lws2_32 -lgdi32 -lgdiplus -lole32
-- Server: g++ -std=c++17 main.cpp server_socket.cpp client_socket.cpp -o server -lws2_32 -lgdi32 -lgdiplus -lole32
 # Run command
-- Client: .\client client
-- Server: .\server server
+- Client: Debug/client client <serverIP>
+- Server: Debug/server server
 ## Build command
 - Client:
   ```g++ -std=c++17 *.cpp -o client -lws2_32 -lgdi32 -lgdiplus -lole32 -lcurl```

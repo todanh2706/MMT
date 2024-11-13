@@ -39,13 +39,6 @@ bool Client::connectToServer() {
     serverAddr.sin_addr.s_addr = inet_addr(serverIP.c_str());
     serverAddr.sin_port = htons(port);
 
-    // int keepAlive = 1, keepAliveTime = 30, keepAliveInterval = 10;
-
-    // setsockopt(clientSocket, SOL_SOCKET, SO_KEEPALIVE, (const char*)&keepAlive, sizeof(keepAlive));
-    // setsockopt(clientSocket, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&keepAliveTime, sizeof(keepAliveTime));
-    // setsockopt(clientSocket, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&keepAliveInterval, sizeof(keepAliveInterval));
-
-
     // Connect to server
     int result = connect(clientSocket, (sockaddr*)&serverAddr, sizeof(serverAddr));
     if (result == SOCKET_ERROR) {
@@ -118,50 +111,12 @@ bool  Client::sendKeyloggerRequest(){
    
 bool Client::sendScreenshotRequest()
 {
-    // Step 1: Send a request to the server for a screenshot
     const char* requestMessage = "screenshot";
     int sendResult = send(clientSocket, requestMessage, strlen(requestMessage), 0);
     if (sendResult == SOCKET_ERROR) {
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
-
-    // // Step 2: Receive the screenshot data
-    // char buffer[1024]; // Adjust size as necessary
-    // std::ofstream outFile("received_screenshot.png", std::ios::binary);
-    // if (!outFile) {
-    //     std::cerr << "Error opening file for writing." << std::endl;
-    //     return false;
-    // }
-
-    // // Assume the server sends the size first
-    // int bytesReceived;
-    // while ((bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0)) > 0) {
-    //     outFile.write(buffer, bytesReceived); // Write the received data to the file
-    // }
-
-    // if (bytesReceived < 0) {
-    //     std::cerr << "Receive failed: " << WSAGetLastError() << std::endl;
-    //     return false;
-    // }
-
-    // outFile.close();
-    // std::cout << "Screenshot received and saved as received_screenshot.png" << std::endl;
-    // return true;
-
-    // uint32_t dataSize;
-    // recv(clientSocket, reinterpret_cast<char*>(&dataSize), sizeof(dataSize), 0);
-    // dataSize = ntohl(dataSize);
-
-    // std::vector<unsigned char> imageData(dataSize);
-    // recv(clientSocket, reinterpret_cast<char*>(imageData.data()), dataSize, 0);
-
-    // std::ofstream outFile("received_screenshot.jpg", std::ios::binary);
-    // outFile.write(reinterpret_cast<char*>(imageData.data()), imageData.size());
-    // outFile.close();
-
-    // std::cout << "Screenshot received and saved as 'received_screenshot.jpg'" << std::endl;
-    // return true;
 
     int dataSize;
     if (recv(clientSocket, reinterpret_cast<char*>(&dataSize), sizeof(dataSize), 0) <= 0) {
@@ -187,6 +142,7 @@ bool Client::sendScreenshotRequest()
     }
 
     cv::imwrite("received_screenshot.jpg", image);
+    std::cout << "Received screenshot from server and save as received_screenshot.jpg.\n";
     return true;
 }
 
@@ -259,6 +215,7 @@ bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::s
 
 bool Client::sendWebcamRequest() {
     std::string request = "open_webcam";
+    std::cout << "Webcam request sending..." << std::endl;
 
     if (send(clientSocket, request.c_str(), request.size(), 0) == SOCKET_ERROR) {
         std::cerr << "Failed to send webcam request: " << WSAGetLastError() << std::endl;
@@ -266,17 +223,21 @@ bool Client::sendWebcamRequest() {
     }
 
     std::cout << "Webcam request sent to server." << std::endl;
-
-    int demand;
-    do
+    std::string demand;
+    while (1)
     {
-        std::cout << "Next demand: ";
-        std::cin >> demand;
-        if (demand == 1) sendStartWebcamRequest();
-        else if (demand == 2) sendStopWebcamRequest();
-        else if (demand == 3) sendCloseWebcamRequest();
-    } while (demand != 0);
+        std::cout << "In webcam, next demand (start/stop/close): ";
 
+        std::cin >> demand;
+
+        if (demand == "start") sendStartWebcamRequest();
+        else if (demand == "stop") sendStopWebcamRequest();
+        else if (demand == "close") {
+            sendCloseWebcamRequest();
+            break;
+        }
+    }
+    std::cin.ignore();
     return true;
 }
 
@@ -321,6 +282,7 @@ bool Client::sendStopWebcamRequest()
         std::cerr << "Server error: " << response << std::endl;
         return false;
     }
+    std::cout << "Server message: " << response << std::endl;
 
     // Receive the size of the file first
     uint32_t fileSize;
@@ -363,7 +325,7 @@ bool Client::sendStopWebcamRequest()
 
 bool Client::sendCloseWebcamRequest()
 {
-    std:: string request = "close_webcam";
+    std::string request = "close_webcam";
 
     if (send(clientSocket, request.c_str(), request.size(), 0) == SOCKET_ERROR)
     {
@@ -372,5 +334,20 @@ bool Client::sendCloseWebcamRequest()
     }
 
     std::cout << "Close webcam request sent to server." << std::endl;
+    return true;
+}
+
+bool Client::sendCloseConnection()
+{
+    std::string request = "close_connection";
+
+    if (send(clientSocket, request.c_str(), request.size(), 0) == SOCKET_ERROR)
+    {
+        std::cerr << "Failed to send close connection request: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+
+    std::cout << "Close connection request sent to server." << std::endl;
+    std::cout << "Connection closing..." << std::endl;
     return true;
 }
