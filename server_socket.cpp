@@ -235,12 +235,12 @@ void Server::handleClient(SOCKET clientSocket) {
             else if(receivedMessage.substr(0, 7) == "openApp"){
                 std::cout << "Open app command received." << std::endl;
                 std::string appNameStr = receivedMessage.substr(8);
-                openApp(appNameStr, clientSocket);
+                openProcess(appNameStr, clientSocket);
             }
             else if(receivedMessage.substr(0, 8) == "closeApp"){
                 std::cout << "Close app command received." << std::endl;
-                std::string appNameStr = receivedMessage.substr(9);
-                openApp(appNameStr, clientSocket);
+                DWORD processID = stoi(receivedMessage.substr(9));
+                closeProcess(processID, clientSocket);
             }
             else if(receivedMessage == "listService"){
                 std::cout << "List service command received." << std::endl;
