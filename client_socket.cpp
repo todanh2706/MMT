@@ -217,6 +217,7 @@ bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::s
         std::cerr << "Server error: " << response << std::endl;
         return false;
     }
+    std::cout << "Server message: " << response << std::endl;
 
     // Receive the size of the file first
     uint32_t fileSize;
@@ -225,6 +226,7 @@ bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::s
         std::cerr << "Failed to receive file size: " << WSAGetLastError() << std::endl;
         return false;
     }
+    
     fileSize = ntohl(fileSize); // Convert from network byte order to host byte order
 
     // Now receive the actual file data

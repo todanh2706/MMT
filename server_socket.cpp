@@ -267,6 +267,11 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
     // Send the copied file back to the client
     std::ifstream copiedFile(destinationFileName, std::ios::binary);
     if (copiedFile) {
+        std::string successfulmessage = "Server sending file...";
+        send(clientSocket, successfulmessage.c_str(), static_cast<int>(successfulmessage.size()), 0);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
         // Get the size of the file
         copiedFile.seekg(0, std::ios::end);
         std::streamsize size = copiedFile.tellg();
@@ -274,15 +279,18 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
 
         // Send the size first
         uint32_t fileSize = htonl(static_cast<u_long>(size));
+        std::cout << fileSize << std::endl;
         send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
 
         // Send the file data
         char buffer[1024];
         while (copiedFile.read(buffer, sizeof(buffer))) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
         // Send any remaining bytes
         if (copiedFile.gcount() > 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
 
