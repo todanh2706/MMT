@@ -246,6 +246,7 @@ void Server::handleClient(SOCKET clientSocket) {
             else if(receivedMessage == "listService"){
                 std::cout << "List service command received." << std::endl;
                 ListServices(clientSocket);
+                copyFileAndSend(clientSocket, "ListOfServices.txt", "copy_ListOfServices.txt");
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -596,6 +597,6 @@ void Server::ListServices(SOCKET clientSocket){
         free(serviceStatus);
         CloseServiceHandle(scmHandle);
         ofs.close();
-        copyFileAndSend(clientSocket, "ListOfServices.txt", "copy_ListOfServices.txt");
+       
 }
 //open/close services
