@@ -231,7 +231,6 @@ void Server::handleClient(SOCKET clientSocket) {
             } else if (receivedMessage == "listApp"){
                 std::cout << "List app command received." << std::endl;
                 ListApplications(clientSocket);
-                copyFileAndSend(clientSocket, "applications.txt", "copy_application.txt");
             }
             else if(receivedMessage.substr(0, 7) == "openApp"){
                 std::cout << "Open app command received." << std::endl;
@@ -459,7 +458,7 @@ void Server::ListApplications(SOCKET clientSocket) {
     }
     auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
     outfile << "Current time:" << ctime(&timenow) << std::endl;
-    outfile << "Services name" << std::setw(35) << "Process ID" << std::endl;
+    outfile << "Application name" << std::setw(35) << "Process ID" << std::endl;
     do {
         if (hasVisibleWindow(pe32.th32ProcessID)) {
             outfile << std::left << std::setw(40)

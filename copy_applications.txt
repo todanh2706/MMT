@@ -1,15 +1,8 @@
-Application Name: explorer.exe
-Process ID: 4536
+Current time:Wed Nov 13 11:12:01 2024
 
-Application Name: Code.exe
-Process ID: 7960
-
-Application Name: TextInputHost.exe
-Process ID: 8976
-
-Application Name: SystemSettings.exe
-Process ID: 9668
-
-Application Name: ApplicationFrameHost.exe
-Process ID: 5600
-
+Services name                         Process ID
+explorer.exe                            4536
+Code.exe                                7960
+TextInputHost.exe                       8976
+SystemSettings.exe                      9668
+ApplicationFrameHost.exe                5600
