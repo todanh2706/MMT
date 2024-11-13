@@ -22,3 +22,12 @@
 }
 ```
 
+# Demand in client
+- Shut down: shutdown
+- Copy file: copyfile <sourcefile> <destinationfile>
+- Screenshot: screenshot
+- Webcam: + Open: webcam
+		+ Start: start
+		+ Stop: stop
+		+ Close: close
+- Close connection: closeconnection
