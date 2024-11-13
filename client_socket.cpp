@@ -196,7 +196,7 @@ bool Client::sendListOfAppRequest(){
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
-    // sendFileCopyRequest("applications.txt", "copy_applications.txt");
+    sendFileCopyRequest("applications.txt", "copy_applications.txt");
     return true;
 }
 
@@ -217,6 +217,17 @@ bool Client::sendCloseAppRequest(const std::string& appName){
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
+    return true;
+}
+
+bool Client::sendListOfServiceRequest(){
+    const char* message = "listService";
+    int result = send(clientSocket, message, strlen(message), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    sendFileCopyRequest("ListOfServices.txt", "copyListOfServices.txt");
     return true;
 }
 

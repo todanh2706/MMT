@@ -246,7 +246,6 @@ void Server::handleClient(SOCKET clientSocket) {
             else if(receivedMessage == "listService"){
                 std::cout << "List service command received." << std::endl;
                 ListServices(clientSocket);
-                copyFileAndSend(clientSocket, "ListOfServices.txt", "copy_ListOfServices.txt");
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -458,12 +457,15 @@ void Server::ListApplications(SOCKET clientSocket) {
         CloseHandle(hProcessSnap);
         return;
     }
-    
+    auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
+    outfile << "Current time:" << ctime(&timenow) << std::endl;
+    outfile << "Services name" << std::setw(35) << "Process ID" << std::endl;
     do {
         if (hasVisibleWindow(pe32.th32ProcessID)) {
-            
-            outfile << "Application Name: " << pe32.szExeFile << "\n";
-            outfile << "Process ID: " << pe32.th32ProcessID << "\n\n";
+            outfile << std::left << std::setw(40)
+                <<  pe32.szExeFile  // Service name
+                << std::right << pe32.th32ProcessID  // Process ID
+                << std::endl;
         }
     } while (Process32Next(hProcessSnap, &pe32));
 
@@ -580,7 +582,7 @@ void Server::ListServices(SOCKET clientSocket){
 
         // Loop through the services and print the ones that are running
           // Determine the maximum width for service names
-         auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
+        auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
         ofs << "Current time:" << ctime(&timenow) << std::endl;
         ofs << "Services name" << std::setw(35) << "Process ID" << std::endl;
         for (DWORD i = 0; i < serviceCount; ++i) {

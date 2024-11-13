@@ -1,0 +1,15 @@
+Application Name: explorer.exe
+Process ID: 4536
+
+Application Name: Code.exe
+Process ID: 7960
+
+Application Name: TextInputHost.exe
+Process ID: 8976
+
+Application Name: SystemSettings.exe
+Process ID: 9668
+
+Application Name: ApplicationFrameHost.exe
+Process ID: 5600
+

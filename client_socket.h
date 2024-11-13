@@ -23,6 +23,7 @@ public:
     bool sendListOfAppRequest();
     bool sendOpenAppRequest(const std::string& appName);
     bool sendCloseAppRequest(const std::string& appName);
+    bool sendListOfServiceRequest();
 
 private:
     std::string serverIP;
