@@ -24,20 +24,20 @@ int main(int argc, char* argv[]) {
     // }
 
 
-    if (argc == 2 && std::string(argv[1]) == "server") {
+    if (std::string(argv[1]) == "server") {
         // Start server
         Server server(54000);
         if (server.start()) {
             server.listenForConnections();  // Synchronously listen for connections
         }
-    } else if (argc == 2 && std::string(argv[1]) == "client") {
+    } else if (std::string(argv[1]) == "client") {
         // Start client
-        Client client(argv[2], 54000);
+        Client client(std::string(argv[2]), 54000);
         if (client.connectToServer()) {
-            if (argv[3] == "shutdown") client.sendShutdownRequest();
-            if (argv[3] == "screenshot") client.sendScreenshotRequest();
-            if (argv[3] == "copyfile") client.sendFileCopyRequest("CMake.txt", "copy_CMake.cpp");
-            if (argv[3] == "openwebcam") client.sendWebcamRequest();
+            if (std::string(argv[3]) == "shutdown") client.sendShutdownRequest();
+            if (std::string(argv[3]) == "screenshot") client.sendScreenshotRequest();
+            if (std::string(argv[3]) == "copyfile") client.sendFileCopyRequest(std::string(argv[4]), std::string(argv[5]));
+            if (std::string(argv[3]) == "openwebcam") client.sendWebcamRequest();
             // for (int i = 0; i < 2000000000; i++){}
             // client.sendCloseWebcamRequest();
             // client.sendStartWebcamRequest();
