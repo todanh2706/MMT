@@ -484,7 +484,7 @@ void Server::openProcess(const std::string& appName, SOCKET clientSocket)
     }
 }
 
-void Server::closeProcess(const DWORD processId, SOCKET clientSocket) //chatgpt
+void Server::closeProcess(const DWORD& processId, SOCKET clientSocket) //chatgpt
 {
     HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, processId);
     if (hProcess == NULL) {

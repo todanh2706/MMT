@@ -67,8 +67,8 @@ private:
     //List/Turn on/Turn off App
     bool hasVisibleWindow(DWORD processID);
     void ListApplications(SOCKET);
-    void openProcess(const DWORD processID, SOCKET clientSocket);
-    void closeProcess(const DWORD processID, SOCKET clientSocket);
+    void openProcess(const std::string& appName, SOCKET clientSocket);
+    void closeProcess(const DWORD& processID, SOCKET clientSocket);
     //List/Turn on/Turn off services
     void ListServices(SOCKET);
 };
