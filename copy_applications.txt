@@ -1,8 +1,10 @@
-Current time:Wed Nov 13 11:12:01 2024
+Current time:Wed Nov 13 20:37:47 2024
 
-Services name                         Process ID
-explorer.exe                            4536
-Code.exe                                7960
-TextInputHost.exe                       8976
-SystemSettings.exe                      9668
-ApplicationFrameHost.exe                5600
+Application name                         Process ID
+explorer.exe                            4360
+TextInputHost.exe                       3768
+SystemSettings.exe                      8804
+ApplicationFrameHost.exe                4696
+Code.exe                                4944
+Code.exe                                4340
+msedge.exe                              3640
