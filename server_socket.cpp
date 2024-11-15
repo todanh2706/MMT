@@ -229,21 +229,18 @@ void Server::handleClient(SOCKET clientSocket) {
                 stopKeyLogger(clientSocket);
             } else if (receivedMessage == "listApp"){
                 std::cout << "List app command received." << std::endl;
-                ListApplications(clientSocket);
-            }
-            else if(receivedMessage.substr(0, 7) == "openApp"){
+                listApplications(clientSocket);
+            } else if(receivedMessage.substr(0, 7) == "openApp"){
                 std::cout << "Open app command received." << std::endl;
                 std::string appNameStr = receivedMessage.substr(8);
                 openProcess(appNameStr, clientSocket);
-            }
-            else if(receivedMessage.substr(0, 8) == "closeApp"){
+            } else if(receivedMessage.substr(0, 8) == "closeApp"){
                 std::cout << "Close app command received." << std::endl;
                 DWORD processID = stoi(receivedMessage.substr(9));
                 closeProcess(processID, clientSocket);
-            }
-            else if(receivedMessage == "listService"){
+            } else if(receivedMessage == "listService"){
                 std::cout << "List service command received." << std::endl;
-                ListServices(clientSocket);
+                listServices(clientSocket);
             }
             // else if (receivedMessage == "screenshot") {
             //     std::cout << "Screenshot command received. Taking a screenshot..." << std::endl;
@@ -410,7 +407,7 @@ void Server::keyLogger() {
 }
 
 
-bool Server::hasVisibleWindow(DWORD processID) {
+bool Server::hasVisibleWindow(const int processID) {
     HWND hwnd = GetTopWindow(NULL);
     while (hwnd) {
         DWORD windowProcessID;
@@ -424,7 +421,7 @@ bool Server::hasVisibleWindow(DWORD processID) {
 }
 
 //List app https://stackoverflow.com/questions/77231403/get-a-list-of-open-application-windows-in-c-windows
-void Server::ListApplications(SOCKET clientSocket) {
+void Server::listApplications(SOCKET clientSocket) {
     HANDLE hProcessSnap;
     PROCESSENTRY32 pe32;
     std::ofstream outfile("applications.txt");
@@ -463,8 +460,8 @@ void Server::openProcess(const std::string& appName, SOCKET clientSocket)
 {
     HINSTANCE hInstance = ShellExecute(
         NULL,           // No parent window
-        "open",         // Action to perform
-        appName.c_str(),// Application name
+        (LPCWCHAR)"open",         // Action to perform
+        (LPCWCHAR)appName.c_str(),// Application name
         NULL,           // No parameters
         NULL,           // Default directory
         SW_SHOWNORMAL   // Show the application window normally
@@ -505,7 +502,7 @@ void Server::closeProcess(const int processId, SOCKET clientSocket) //chatgpt
     CloseHandle(hProcess);
 }
 //List services
-void Server::ListServices(SOCKET clientSocket){
+void Server::listServices(SOCKET clientSocket){
         SC_HANDLE scmHandle = OpenSCManager(nullptr, nullptr, SC_MANAGER_ENUMERATE_SERVICE);
         if (!scmHandle) {
             std::cerr << "Failed to open Service Control Manager." << std::endl;
