@@ -18,7 +18,6 @@ public:
     bool sendRestartRequest();
     bool sendKeyloggerStartRequest();
     bool sendKeyloggerOffRequest();
-    bool sendScreenshotRequest();
     bool sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName);
     bool sendListOfAppRequest();
     bool sendOpenAppRequest(const std::string& appName);
