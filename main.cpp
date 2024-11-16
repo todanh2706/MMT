@@ -1,87 +1,49 @@
 #include "client_socket.h"
 #include "server_socket.h"
+// #include "GmailClient.h"
 #include <iostream>
+#include <sstream>
+
+void handleDemand(std::string demands[10], std::string demand)
+{
+    std::stringstream ss(demand.c_str());
+
+    int i = 0;
+    while (ss >> demands[i++]){}
+    i--;
+    demands[i] = "end!";
+}
 
 int main(int argc, char* argv[]) {
-
-    // if (argc == 2 && std::string(argv[1]) == "server") {
-    //     // Start server
-    //     Server server(8083);
-    //     if (server.start()) {
-    //         server.listenForConnections();  // Synchronously listen for connections
-    //     }
-    // } else if (argc == 2 && std::string(argv[1]) == "client") {
-    //     // Start client
-    //     Client client("10.123.0.76", 8083);
-    //     if (client.connectToServer()) {
-    //         // client.sendShutdownRequest();
-    //         client.sendKeyloggerRequest();
-    //     }
-        
-    // } else {
-    //     std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
-    // }
-
- 
-    if (argc == 2 && std::string(argv[1]) == "server") {
+    if (std::string(argv[1]) == "server") {
         // Start server
         Server server(54000);
         if (server.start()) {
-            std::cout <<"listening";
             server.listenForConnections();  // Synchronously listen for connections
         }
-    } else if (argc == 2 && std::string(argv[1]) == "client") {
+    } else if (std::string(argv[1]) == "client") {
         // Start client
-        Client client("192.168.2.2", 54000);
+        Client client(std::string(argv[2]), 54000);
         if (client.connectToServer()) {
-            int choice;
-            std::cout  << "Input: "; std::cin >> choice;
-            switch(choice){
-                case 1: client.sendShutdownRequest(); break;
-                case 2: client.sendRestartRequest(); break;
-                case 3: client.sendListOfAppRequest(); break;
-                case 4: client.sendListOfServiceRequest(); break;
-                case 5: {
-                    std::string appName;
-                   getline(std::cin, appName);
-                    getline(std::cin, appName);
-                    client.sendOpenAppRequest(appName);
-                }; break;
-                case 6: {
-                    std::string processId;
-                    std::cout << "Input process ID: ";
-                    std::cin.ignore();
-                    getline(std::cin, processId);
-                    client.sendCloseAppRequest(processId);
-                };break;
-                case 7:{
-                    std::string command;
-                    while (true) {
-                        std::cout << "Enter 'start' to start keylogger, 'stop' to stop keylogger, or 'exit' to quit: ";
-                        std::cin >> command;
+            std::string endflag = "end!", demands[10], demand;
+            while (1)
+            {
+                std::cout << "Enter the demand: ";
+                std::getline(std::cin, demand);
+                handleDemand(demands, demand);
 
-                        if (command == "start") {
-                            client.sendKeyloggerStartRequest();
-                            std::cout << "Keylogger started." << std::endl;
-                        } 
-                        else if (command == "stop") {
-                            client.sendKeyloggerOffRequest();
-                            std::cout << "Keylogger stopped and log file sent to server." << std::endl;
-                        } 
-                        else if (command == "exit") {
-                            break;  // Exit the loop and end the client session
-                        } 
-                        else {
-                            std::cout << "Unknown command. Try 'start', 'stop', or 'exit'." << std::endl;
-                        }
-
-                        // Optional delay between commands
-                        std::this_thread::sleep_for(std::chrono::seconds(1));
-                    }
-                }; break;
-                default: break;
+                if (demands[0] == "shutdown" && demands[1] == endflag) client.sendShutdownRequest();
+                if (demands[0] == "screenshot" && demands[1] == endflag) client.sendScreenshotRequest();
+                if (demands[0] == "copyfile" && demands[3] == endflag) client.sendFileCopyRequest(demands[1], demands[2]);
+                if (demands[0] == "webcam" && demands[1] == endflag) client.sendWebcamRequest();
+                if (demands[0] == "closeconnection" && demands[1] == endflag) {
+                    client.sendCloseConnection();
+                    break;
+                }
+                // client.sendCloseWebcamRequest();
+                // client.sendStartWebcamRequest();
+                // client.sendStopWebcamRequest();
             }
-           
         }
     } else {
         std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;

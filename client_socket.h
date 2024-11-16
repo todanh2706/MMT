@@ -7,6 +7,9 @@
 #include <string>
 #include <cstdint>
 #include <algorithm>
+#include <opencv2/opencv.hpp>
+
+#pragma comment(lib, "ws2_32.lib")
 
 class Client {
 public:
@@ -24,6 +27,11 @@ public:
     bool sendCloseAppRequest(const std::string& appName);
     bool sendListOfServiceRequest();
 
+    bool sendWebcamRequest();
+    bool sendStartWebcamRequest();
+    bool sendStopWebcamRequest();
+    bool sendCloseWebcamRequest();
+    bool sendCloseConnection();
 private:
     std::string serverIP;
     int port;

