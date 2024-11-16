@@ -19,9 +19,13 @@ public:
     bool sendShutdownRequest();
 
     bool sendRestartRequest();
-    bool sendKeyloggerRequest();
-    bool sendScreenshotRequest();
+    bool sendKeyloggerStartRequest();
+    bool sendKeyloggerOffRequest();
     bool sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName);
+    bool sendListOfAppRequest();
+    bool sendOpenAppRequest(const std::string& appName);
+    bool sendCloseAppRequest(const std::string& appName);
+    bool sendListOfServiceRequest();
 
     bool sendWebcamRequest();
     bool sendStartWebcamRequest();

