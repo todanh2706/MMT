@@ -455,6 +455,7 @@ void Server::listApplications(SOCKET clientSocket) {
     auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
     outfile << "Current time:" << ctime(&timenow) << std::endl;
     outfile << "Application name" << std::setw(35) << "Process ID" << std::endl;
+    outfile << "---------------------------------------------------------------\n";
     do {
         wchar_t wideExeFile[MAX_PATH];
         MultiByteToWideChar(CP_ACP, 0, pe32.szExeFile, -1, wideExeFile, MAX_PATH);
@@ -571,8 +572,8 @@ void Server::listServices(SOCKET clientSocket){
             CloseServiceHandle(scmHandle);
             return;
         }
-        std::ofstream ofs("ListOfServices.txt");
-        if(!ofs.is_open()){
+        std::ofstream outfile("ListOfServices.txt");
+        if(!outfile.is_open()){
             std::cout << "cannot open file";
             free(serviceStatus);
             CloseServiceHandle(scmHandle);
@@ -583,12 +584,13 @@ void Server::listServices(SOCKET clientSocket){
         // Loop through the services and print the ones that are running
           // Determine the maximum width for service names
         auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
-        ofs << "Current time:" << ctime(&timenow) << std::endl;
-        ofs << "Services name" << std::setw(35) << "Process ID" << std::endl;
+        outfile << "Current time:" << ctime(&timenow) << std::endl;
+        outfile << "Services name" << std::setw(35) << "Process ID" << std::endl;
+        outfile << "---------------------------------------------------------------\n";
         for (DWORD i = 0; i < serviceCount; ++i) {
             if (serviceStatus[i].ServiceStatusProcess.dwCurrentState == SERVICE_RUNNING) {
              
-                ofs << std::left << std::setw(40)
+                outfile << std::left << std::setw(40)
                 << serviceStatus[i].lpServiceName  // Service name
                 << std::right << serviceStatus[i].ServiceStatusProcess.dwProcessId  // Process ID
                 << std::endl;
@@ -598,7 +600,7 @@ void Server::listServices(SOCKET clientSocket){
         // Clean up
         free(serviceStatus);
         CloseServiceHandle(scmHandle);
-        ofs.close();
+        outfile.close();
        
 }
 //open/close services
