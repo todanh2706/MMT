@@ -406,6 +406,19 @@ void Server::keyLogger() {
     outputFile.close();  
 }
 
+bool Server::isBackgroundProcess(const wchar_t* processName) {
+    std::vector<std::wstring> backgroundProcesses{
+        L"explorer.exe", L"TextInputHost.exe", L"SystemSettings.exe",
+        L"powershell.exe", L"ApplicationFrameHost.exe"
+    };
+
+    for (const auto& str : backgroundProcesses) {
+        if (str == processName) {
+            return true;
+        }
+    }
+    return false;
+}
 
 bool Server::hasVisibleWindow(const int processID) {
     HWND hwnd = GetTopWindow(NULL);
@@ -443,6 +456,10 @@ void Server::listApplications(SOCKET clientSocket) {
     outfile << "Current time:" << ctime(&timenow) << std::endl;
     outfile << "Application name" << std::setw(35) << "Process ID" << std::endl;
     do {
+        wchar_t wideExeFile[MAX_PATH];
+        MultiByteToWideChar(CP_ACP, 0, pe32.szExeFile, -1, wideExeFile, MAX_PATH);
+        if (isBackgroundProcess(wideExeFile))
+            continue;
         if (hasVisibleWindow(pe32.th32ProcessID)) {
             outfile << std::left << std::setw(40)
                 <<  pe32.szExeFile  // Service name
@@ -460,8 +477,8 @@ void Server::openProcess(const std::string& appName, SOCKET clientSocket)
 {
     HINSTANCE hInstance = ShellExecute(
         NULL,           // No parent window
-        (LPCWCHAR)"open",         // Action to perform
-        (LPCWCHAR)appName.c_str(),// Application name
+        "open",         // Action to perform
+        appName.c_str(),// Application name
         NULL,           // No parameters
         NULL,           // Default directory
         SW_SHOWNORMAL   // Show the application window normally

