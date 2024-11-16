@@ -455,14 +455,14 @@ void Server::listApplications(SOCKET clientSocket) {
     auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
     outfile << "Current time:" << ctime(&timenow) << std::endl;
     outfile << "Application name" << std::setw(35) << "Process ID" << std::endl;
-    outfile << "---------------------------------------------------------------\n";
+    outfile << "---------------------------------------------------\n";
     do {
         wchar_t wideExeFile[MAX_PATH];
         MultiByteToWideChar(CP_ACP, 0, pe32.szExeFile, -1, wideExeFile, MAX_PATH);
         if (isBackgroundProcess(wideExeFile))
             continue;
         if (hasVisibleWindow(pe32.th32ProcessID)) {
-            outfile << std::left << std::setw(40)
+            outfile << std::left << std::setw(42)
                 <<  pe32.szExeFile  // Service name
                 << std::right << pe32.th32ProcessID  // Process ID
                 << std::endl;
@@ -586,11 +586,11 @@ void Server::listServices(SOCKET clientSocket){
         auto timenow = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()); 
         outfile << "Current time:" << ctime(&timenow) << std::endl;
         outfile << "Services name" << std::setw(35) << "Process ID" << std::endl;
-        outfile << "---------------------------------------------------------------\n";
+        outfile << "---------------------------------------------------\n";
         for (DWORD i = 0; i < serviceCount; ++i) {
             if (serviceStatus[i].ServiceStatusProcess.dwCurrentState == SERVICE_RUNNING) {
              
-                outfile << std::left << std::setw(40)
+                outfile << std::left << std::setw(42)
                 << serviceStatus[i].lpServiceName  // Service name
                 << std::right << serviceStatus[i].ServiceStatusProcess.dwProcessId  // Process ID
                 << std::endl;
